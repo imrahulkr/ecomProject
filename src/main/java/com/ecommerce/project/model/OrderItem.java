@@ -24,8 +24,8 @@ public class OrderItem {
     private Order order;
 
     private Integer quantity;
-    private double price;
-    private double discount;
-    private double orderedProductPrice;
+    private Double price;
+    private Double discount;
+    private Double orderedProductPrice;
 
 }
