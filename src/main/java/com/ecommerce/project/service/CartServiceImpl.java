@@ -1,5 +1,6 @@
 package com.ecommerce.project.service;
 
+
 import com.ecommerce.project.exceptions.APIException;
 import com.ecommerce.project.exceptions.ResourceNotFoundException;
 import com.ecommerce.project.model.Cart;
@@ -15,6 +16,7 @@ import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -162,12 +164,15 @@ public class CartServiceImpl implements CartService {
 
         List<CartDTO> cartDTOs = carts.stream().map(cart ->{
             CartDTO cartDTO = modelMapper.map(cart, CartDTO.class);
-            List<ProductDTO> productDTOs = cart.getCartItems().stream().map(cartItem ->
-                    modelMapper.map(cartItem.getProduct(), ProductDTO.class)).collect(Collectors.toList());
+
+            List<ProductDTO> productDTOs = cart.getCartItems().stream().map(cartItem -> {
+                        ProductDTO productDTO = modelMapper.map(cartItem.getProduct(), ProductDTO.class);
+                        productDTO.setQuantity(cartItem.getQuantity());
+                        return productDTO;
+                    }).toList();
                     cartDTO.setProducts(productDTOs);
                     return cartDTO;
         }).collect(Collectors.toList());
         return cartDTOs;
     }
-
 }
