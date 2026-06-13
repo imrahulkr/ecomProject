@@ -3,12 +3,15 @@ package com.ecommerce.project.service;
 import com.ecommerce.project.exceptions.APIException;
 import com.ecommerce.project.exceptions.ResourceNotFoundException;
 import com.ecommerce.project.model.*;
-import com.ecommerce.project.payload.OrderDTO;
-import com.ecommerce.project.payload.OrderItemDTO;
+import com.ecommerce.project.payload.*;
 import com.ecommerce.project.repositories.*;
 import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -54,7 +57,9 @@ public class OrderServiceImpl implements OrderService {
         order.setOrderDate(LocalDate.now());
         order.setTotalAmount(cart.getTotalPrice());
         order.setOrderStatus("Order Accepted !");
+
         Payment payment = new Payment(paymentMethod, pgPaymentId, pgStatus, pgResponseMessage, pgName);
+        payment.setOrder(order);
         Payment savedPayment = paymentRepository.save(payment);
         order.setPayment(savedPayment);
         Order savedOrder = orderRepository.save(order);
@@ -74,7 +79,7 @@ public class OrderServiceImpl implements OrderService {
             orderItem.setOrder(savedOrder);
             orderItems.add(orderItem);
         }
-        orderItemRepository.saveAll(orderItems);
+        orderItems =  orderItemRepository.saveAll(orderItems);
 
         // Update product stock
         cart.getCartItems().forEach(item -> {
@@ -100,4 +105,42 @@ public class OrderServiceImpl implements OrderService {
         orderDTO.setOrderDate(LocalDate.now());
         return orderDTO;
     }
+
+    @Override
+    public OrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
+        // Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(Sort.Direction.ASC, "categoryId") : Sort.by(Sort.Direction.DESC, "categoryId");
+        Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        //Pageable pageDetails = PageRequest.of(pageNumber, pageSize);
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
+        Page<Order> orderpage = orderRepository.findAll(pageDetails);
+        //List<Order> orders = orderRepository.findAll();
+        List<Order> orders = orderpage.getContent();
+        if(orders.isEmpty()) throw new APIException("No Order created till now");
+        List<OrderDTO> orderDTOS = orders.stream()
+                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .toList();
+        //return orders;
+        //return new OrderResponse(orderDTOS);
+        OrderResponse orderResponse = new OrderResponse();
+        orderResponse.setContent(orderDTOS);
+        orderResponse.setPageNumber(orderpage.getNumber());
+        orderResponse.setPageSize(orderpage.getSize());
+        orderResponse.setTotalPages(orderpage.getTotalPages());
+        orderResponse.setTotalElement(orderpage.getTotalElements());
+        orderResponse.setLastPage(orderpage.isLast());
+        return orderResponse;
+    }
+
+    @Override
+    public OrderDTO updateOrder(String emailId, Long orderId, String status) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("order", "orderId", orderId));
+        order.setEmail(emailId);
+        order.setOrderStatus(status);
+        orderRepository.save(order);
+
+        return modelMapper.map(order, OrderDTO.class);
+    }
+
+
 }

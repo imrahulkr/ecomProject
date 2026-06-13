@@ -7,6 +7,7 @@ import com.ecommerce.project.model.Cart;
 import com.ecommerce.project.model.CartItem;
 import com.ecommerce.project.model.Product;
 import com.ecommerce.project.payload.CartDTO;
+import com.ecommerce.project.payload.CartItemDTO;
 import com.ecommerce.project.payload.ProductDTO;
 import com.ecommerce.project.repositories.CartItemRepository;
 import com.ecommerce.project.repositories.CartRepository;
@@ -89,8 +90,11 @@ public class CartServiceImpl implements CartService {
             throw new ResourceNotFoundException("Cart ", "cartId", cartId);
         }
         CartDTO cartDTO = modelMapper.map(cart, CartDTO.class);
-        List<ProductDTO> productDTOs = cart.getCartItems().stream().map(product ->
-                modelMapper.map(product, ProductDTO.class)).toList();
+        List<ProductDTO> productDTOs = cart.getCartItems().stream().map(product -> {
+            ProductDTO productDTO = modelMapper.map(product.getProduct(), ProductDTO.class);
+            productDTO.setQuantity(product.getQuantity());
+            return productDTO;
+        }).toList();
         cartDTO.setProducts(productDTOs);
         return cartDTO;
     }
@@ -147,6 +151,79 @@ public class CartServiceImpl implements CartService {
         cartRepository.save(cart);
         cartItemRepository.deleteCartItemByProductIdAndCartId(cartId, productId);
         return "Product : " + cartItem.getProduct().getProductName() + " has been deleted";
+    }
+    @Transactional
+    @Override
+    public String createOrUpdateCartWithItems(List<CartItemDTO> cartItems) {
+        System.out.println("createOrUpdateCartWithItems : ");
+//        String emailId = authUtil.loggedInEmail();
+//        Cart existingCart = cartRepository.findCartByEmail(emailId);
+//        if(existingCart == null) {
+//            existingCart = new Cart();
+//            existingCart.setTotalPrice(0);
+//            existingCart.setUser(authUtil.loggedInUser());
+//            existingCart = cartRepository.save(existingCart);
+//        } else {
+//            cartItemRepository.deleteAllByCartId(existingCart.getCartId());
+//        }
+//        double totalPrice = 0.00;
+//        for(CartItemDTO cartItemDTO : cartItems) {
+////            Long productId = cartItemDTO.getProduct().getProductId();
+//            Long productId = cartItemDTO.getProductId();
+//            Integer quantity = cartItemDTO.getQuantity();
+//
+//            Product product = productRepository.findById(productId).orElseThrow(() -> new ResourceNotFoundException("Product ", "productId", productId));
+//            product.setQuantity(product.getQuantity() - quantity);
+//            totalPrice += product.getSpecialPrice() * quantity;
+//            CartItem cartItem = new CartItem();
+//        }
+//        return "";
+
+
+        // Get user's email
+        String emailId = authUtil.loggedInEmail();
+
+        // Check if an existing cart is available or create a new one
+        Cart existingCart = cartRepository.findCartByEmail(emailId);
+        if (existingCart == null) {
+            existingCart = new Cart();
+            existingCart.setTotalPrice(0.00);
+            existingCart.setUser(authUtil.loggedInUser());
+            existingCart = cartRepository.save(existingCart);
+        } else {
+            // Clear all current items in the existing cart
+            cartItemRepository.deleteAllByCartId(existingCart.getCartId());
+        }
+
+        double totalPrice = 0.00;
+
+        // Process each item in the request to add to the cart
+        for (CartItemDTO cartItemDTO : cartItems) {
+            Long productId = cartItemDTO.getProductId();
+            Integer quantity = cartItemDTO.getQuantity();
+
+            // Find the product by ID
+            Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+
+            // Directly update product stock and total price
+            // product.setQuantity(product.getQuantity() - quantity);
+            totalPrice += product.getSpecialPrice() * quantity;
+
+            // Create and save cart item
+            CartItem cartItem = new CartItem();
+            cartItem.setProduct(product);
+            cartItem.setCart(existingCart);
+            cartItem.setQuantity(quantity);
+            cartItem.setProductPrice(product.getSpecialPrice());
+            cartItem.setDiscount(product.getDiscount());
+            cartItemRepository.save(cartItem);
+        }
+
+        // Update the cart's total price and save
+        existingCart.setTotalPrice(totalPrice);
+        cartRepository.save(existingCart);
+        return "Cart created/updated with the new items successfully";
     }
 
     private Cart createCart() {

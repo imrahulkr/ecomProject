@@ -10,14 +10,24 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Value("${frontend.url}")
     private String frontendUrl;
+//
+//    @Override
+//    public void addCorsMappings(CorsRegistry registry) {
+//
+//        registry.addMapping("/**").allowedOrigins("http://localhost:3000/", frontendUrl)
+//                .allowedMethods("GET", "POST", "PUT",  "DELETE",  "OPTIONS")
+//                .allowedHeaders("*")
+//                .allowCredentials(true);
+//        WebMvcConfigurer.super.addCorsMappings(registry);
+//    }
+
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-
-        registry.addMapping("/**").allowedOrigins("http://localhost:3000/", frontendUrl)
-                .allowedMethods("GET", "POST", "PUT",  "DELETE",  "OPTIONS")
+        registry.addMapping("/**")
+                .allowedOrigins("http://localhost:3000", frontendUrl)
+                .allowedMethods("GET","POST","PUT","DELETE","OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
-        WebMvcConfigurer.super.addCorsMappings(registry);
     }
 }
