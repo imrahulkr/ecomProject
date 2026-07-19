@@ -5,6 +5,7 @@ import com.ecommerce.project.exceptions.ResourceNotFoundException;
 import com.ecommerce.project.model.*;
 import com.ecommerce.project.payload.*;
 import com.ecommerce.project.repositories.*;
+import com.ecommerce.project.util.AuthUtil;
 import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,8 @@ public class OrderServiceImpl implements OrderService {
     private CartService cartService;
     @Autowired
     private ModelMapper modelMapper;
+    @Autowired
+    AuthUtil authUtil;
 
     @Override
     @Transactional
@@ -140,6 +143,36 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
 
         return modelMapper.map(order, OrderDTO.class);
+    }
+
+    @Override
+    public OrderResponse getAllSellerOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
+        Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        //Pageable pageDetails = PageRequest.of(pageNumber, pageSize);
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
+        User seller = authUtil.loggedInUser();
+        Page<Order> orderpage = orderRepository.findAll(pageDetails);
+        List<Order> orders = orderpage.getContent().stream()
+                .filter(order -> order.getItems().stream()
+                        .anyMatch(orderItem -> {
+                            var product = orderItem.getProduct();
+                            if(product == null || product.getUser() == null) return false;
+                            return product.getUser().
+                                    getUserId().equals(seller.getUserId());
+                        })).toList();
+
+        if(orders.isEmpty()) throw new APIException("No Order created till now");
+        List<OrderDTO> orderDTOS = orders.stream()
+                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .toList();
+        OrderResponse orderResponse = new OrderResponse();
+        orderResponse.setContent(orderDTOS);
+        orderResponse.setPageNumber(orderpage.getNumber());
+        orderResponse.setPageSize(orderpage.getSize());
+        orderResponse.setTotalPages(orderpage.getTotalPages());
+        orderResponse.setTotalElement(orderpage.getTotalElements());
+        orderResponse.setLastPage(orderpage.isLast());
+        return orderResponse;
     }
 
 

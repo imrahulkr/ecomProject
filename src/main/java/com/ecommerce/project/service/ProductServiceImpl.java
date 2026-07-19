@@ -4,10 +4,12 @@ import com.ecommerce.project.exceptions.APIException;
 import com.ecommerce.project.exceptions.ResourceNotFoundException;
 import com.ecommerce.project.model.Category;
 import com.ecommerce.project.model.Product;
+import com.ecommerce.project.model.User;
 import com.ecommerce.project.payload.ProductDTO;
 import com.ecommerce.project.payload.ProductResponse;
 import com.ecommerce.project.repositories.CategoryRepository;
 import com.ecommerce.project.repositories.ProductRepository;
+import com.ecommerce.project.util.AuthUtil;
 import jakarta.validation.Valid;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +36,8 @@ public class ProductServiceImpl implements ProductService {
     private ModelMapper modelMapper;
     @Autowired
     private FileServiceImpl fileServiceImpl;
+    @Autowired
+    private AuthUtil authUtil;
     @Value("${project.image}")
     String path;
 
@@ -47,6 +51,7 @@ public class ProductServiceImpl implements ProductService {
         if(existingProduct != null) throw new APIException("Product with this Name already exists :::: " + product.getProductName());
         product.setImage("Default.png");
         product.setCategory(category);
+        product.setUser(authUtil.loggedInUser());
         product.setSpecialPrice(product.getPrice() - (product.getDiscount() * product.getPrice())/100);
         Product savedProduct = productRepository.save(product);
         return modelMapper.map(savedProduct, ProductDTO.class);
@@ -180,6 +185,18 @@ public class ProductServiceImpl implements ProductService {
 //        productResponse.setTotalPages(productPage.getTotalPages());
 //        productResponse.setTotalElement(productPage.getTotalElements());
 //        productResponse.setLastPage(productPage.isLast());
+        ProductResponse productResponse = getProductResponseFromProductPage(productPage, pageDetails.getPageNumber());
+        return productResponse;
+    }
+
+    @Override
+    public ProductResponse getAllProductForSeller(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
+        Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        //Pageable pageDetails = PageRequest.of(pageNumber, pageSize);
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
+        User seller = authUtil.loggedInUser();
+        System.out.println("Seller : " + seller);
+        Page<Product> productPage = productRepository.findByUser(seller, pageDetails);
         ProductResponse productResponse = getProductResponseFromProductPage(productPage, pageDetails.getPageNumber());
         return productResponse;
     }
