@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body style="font-family: Arial, sans-serif; background:#f4f4f4; padding:20px;">
+    <div style="max-width:600px; margin:auto; background:#fff; padding:30px; border-radios:8px">
+        <h2>Hi <span th:text="${name}">User</span>,</h2>
+        <p>Thanks for signing up! Please confirm your email address : </p>
+
+        <a th:href="${verificationUrl}"
+           style="display:inline-block;padding:12px 24px;backgroud:#febd69;color:#111;text-description:none;border-radius:4px;">
+            Verify Email
+        </a>
+
+        <p style="color:#888;font-size:12px;margin-top:20px;">
+            This link expires in 24 hours.
+        </p>
+    </div>
+</body>
+
+</html>
