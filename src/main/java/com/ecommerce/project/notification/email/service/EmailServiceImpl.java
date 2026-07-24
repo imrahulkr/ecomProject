@@ -72,6 +72,24 @@ public class EmailServiceImpl implements EmailService {
     }
 
     @Override
+    public void sendPasswordChangedEmail(User user) {
+        Map<String, Object> vars = Map.of(
+                "name", user.getUsername()
+        );
+
+        EmailRequest request = EmailRequest.builder()
+                .to(user.getEmail())
+                .from(defaultFrom)
+                .subject("Reset your Password")
+                .htmlBody(templateEngine.render("password-changed", vars))
+                .emailType(EmailType.PASSWORD_RESET)
+                .priority(EmailPriority.HIGH)
+                .metadata(Map.of("userId", String.valueOf(user.getUserId())))
+                .build();
+        emailRetryService.sendEmailWithRetry(request);
+    }
+
+    @Override
     public void sendOrderConfirmation(Order order) {
 
     }

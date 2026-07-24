@@ -1,16 +1,15 @@
 package com.ecommerce.project.service;
 
+import com.ecommerce.project.exceptions.APIException;
 import com.ecommerce.project.model.AppRole;
 import com.ecommerce.project.model.Role;
 import com.ecommerce.project.model.User;
 import com.ecommerce.project.model.UserVerificationToken;
+import com.ecommerce.project.notification.email.event.OnPasswordChangedEvent;
 import com.ecommerce.project.notification.email.event.OnPasswordResetRequestedEvent;
 import com.ecommerce.project.notification.email.event.OnRegistrationCompleteEvent;
 import com.ecommerce.project.notification.email.event.OnUserRegisteredEvent;
-import com.ecommerce.project.payload.AuthenticationResult;
-import com.ecommerce.project.payload.ForgotPasswordRequestDTO;
-import com.ecommerce.project.payload.UserDTO;
-import com.ecommerce.project.payload.UserResponse;
+import com.ecommerce.project.payload.*;
 import com.ecommerce.project.repositories.RoleRepository;
 import com.ecommerce.project.repositories.UserRepository;
 import com.ecommerce.project.repositories.UserVerificationTokenRepository;
@@ -30,9 +29,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -148,6 +150,26 @@ public class AuthServiceImpl implements AuthService{
     public void saveVerificationTokenForUser(User user, String token){
         UserVerificationToken userVerificationToken = new UserVerificationToken(token, user);
         userVerificationTokenRepository.save(userVerificationToken);
+    }
+
+    @Override
+    public void changePassword(UserDetails userDetails, PasswordChangeRequestDTO requestPasswordChangeRequestDTO) {
+
+        if(userDetails == null) throw new APIException("Error : User not logged in");
+
+        User user = userRepository.findByUsername(userDetails.getUsername()).orElseThrow(() -> new UsernameNotFoundException("Error : Username not found!!!"));
+
+        if(!encoder.matches(requestPasswordChangeRequestDTO.getCurrentPassword(), user.getPassword())) {
+            throw new BadCredentialsException("Current password is incorrect");
+        }
+
+        if(encoder.matches(requestPasswordChangeRequestDTO.getNewPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("New password must be different form current password");
+        }
+
+        user.setPassword(encoder.encode(requestPasswordChangeRequestDTO.getNewPassword()));
+        userRepository.save(user);
+        eventPublisher.publishEvent(new OnPasswordChangedEvent(this, user));
     }
 
     @Override

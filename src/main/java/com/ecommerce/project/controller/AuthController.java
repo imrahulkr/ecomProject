@@ -2,8 +2,10 @@ package com.ecommerce.project.controller;
 
 import com.ecommerce.project.config.AppConstants;
 
+import com.ecommerce.project.model.User;
 import com.ecommerce.project.payload.AuthenticationResult;
 import com.ecommerce.project.payload.ForgotPasswordRequestDTO;
+import com.ecommerce.project.payload.PasswordChangeRequestDTO;
 import com.ecommerce.project.payload.ResetPasswordRequestDTO;
 
 import com.ecommerce.project.security.request.LoginRequest;
@@ -27,6 +29,8 @@ import org.springframework.http.ResponseEntity;
 
 import org.springframework.security.core.Authentication;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -125,6 +129,15 @@ public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest
             case "ALREADY_USED" -> ResponseEntity.badRequest().body(Map.of("message", "This reset link has already been used."));
             default -> ResponseEntity.badRequest().body(Map.of("message", "Invalid reset link. "));
         };
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@Valid @RequestBody
+                                            PasswordChangeRequestDTO passwordChangeRequestDTO,
+                                            @AuthenticationPrincipal UserDetails userDetails
+    ){
+        authService.changePassword(userDetails, passwordChangeRequestDTO);
+        return ResponseEntity.ok().body(Map.of("message", "Password changed successfully"));
     }
 
     @GetMapping("/username")

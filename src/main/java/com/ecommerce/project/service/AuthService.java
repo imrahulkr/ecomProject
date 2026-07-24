@@ -3,6 +3,7 @@ package com.ecommerce.project.service;
 import com.ecommerce.project.model.User;
 import com.ecommerce.project.payload.AuthenticationResult;
 import com.ecommerce.project.payload.ForgotPasswordRequestDTO;
+import com.ecommerce.project.payload.PasswordChangeRequestDTO;
 import com.ecommerce.project.payload.UserResponse;
 import com.ecommerce.project.security.request.LoginRequest;
 import com.ecommerce.project.security.request.SignupRequest;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Map;
 
@@ -32,4 +34,6 @@ public interface AuthService {
     UserResponse getAllSellers(Pageable pageDetails);
 
     void saveVerificationTokenForUser(User user, String token);
+
+    void changePassword(UserDetails userDetails, PasswordChangeRequestDTO passwordChangeRequestDTO);
 }

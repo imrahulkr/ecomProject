@@ -31,10 +31,24 @@ public class MyGlobalExceptionHandler {
         return new ResponseEntity<>(apiResponse, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<APIResponse> myIllegalArgumentException(IllegalArgumentException e){
+        String message = e.getMessage();
+        APIResponse apiResponse = new APIResponse(message, false);
+        return new ResponseEntity<>(apiResponse, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(APIException.class)
     public ResponseEntity<APIResponse> myAPIException(APIException e){
         String message = e.getMessage();
         APIResponse apiResponse = new APIResponse(message, false);
         return new ResponseEntity<>(apiResponse, HttpStatus.BAD_REQUEST);
     }
+
+//    @ExceptionHandler(RuntimeException.class)
+//    public ResponseEntity<APIResponse> myRuntimeException(RuntimeException e){
+//        String message = e.getMessage();
+//        APIResponse apiResponse = new APIResponse(message, false);
+//        return new ResponseEntity<>(apiResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+//    }
 }

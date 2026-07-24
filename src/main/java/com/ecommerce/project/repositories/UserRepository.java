@@ -24,4 +24,6 @@ public interface UserRepository extends JpaRepository<User,Long> {
     Page<User> findByRoleName(@Param("role")AppRole appRole, Pageable pageDetails);
 
     Optional<User> findByEmail(@NotBlank(message = "Email is required") @Email(message = "Invalid email format") String email);
+
+
 }
