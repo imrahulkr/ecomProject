@@ -3,11 +3,17 @@ package com.ecommerce.project.service;
 import com.ecommerce.project.model.AppRole;
 import com.ecommerce.project.model.Role;
 import com.ecommerce.project.model.User;
+import com.ecommerce.project.model.UserVerificationToken;
+import com.ecommerce.project.notification.email.event.OnPasswordResetRequestedEvent;
+import com.ecommerce.project.notification.email.event.OnRegistrationCompleteEvent;
+import com.ecommerce.project.notification.email.event.OnUserRegisteredEvent;
 import com.ecommerce.project.payload.AuthenticationResult;
+import com.ecommerce.project.payload.ForgotPasswordRequestDTO;
 import com.ecommerce.project.payload.UserDTO;
 import com.ecommerce.project.payload.UserResponse;
 import com.ecommerce.project.repositories.RoleRepository;
 import com.ecommerce.project.repositories.UserRepository;
+import com.ecommerce.project.repositories.UserVerificationTokenRepository;
 import com.ecommerce.project.security.jwt.JwtUtils;
 import com.ecommerce.project.security.request.LoginRequest;
 import com.ecommerce.project.security.request.SignupRequest;
@@ -17,8 +23,10 @@ import com.ecommerce.project.security.services.UserDetailsImpl;
 import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -44,6 +52,9 @@ public class AuthServiceImpl implements AuthService{
     UserRepository userRepository;
 
     @Autowired
+    private UserVerificationTokenRepository userVerificationTokenRepository;
+
+    @Autowired
     PasswordEncoder encoder;
 
     @Autowired
@@ -51,6 +62,9 @@ public class AuthServiceImpl implements AuthService{
 
     @Autowired
     ModelMapper modelMapper;
+
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
 
     @Override
     public AuthenticationResult login(LoginRequest loginRequest) {
@@ -111,8 +125,47 @@ public class AuthServiceImpl implements AuthService{
             });
         }
         user.setRoles(roles);
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
+//        eventPublisher.publishEvent(new OnRegistrationCompleteEvent(savedUser));
+        eventPublisher.publishEvent(new OnUserRegisteredEvent(savedUser, savedUser));
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
+    }
+
+    @Override
+    public ResponseEntity<Map<String, String>> forgotPassword(ForgotPasswordRequestDTO forgotPasswordRequestDTO) {
+
+        Optional<User> userOpt = userRepository.findByEmail(forgotPasswordRequestDTO.getEmail());
+        if(userOpt.isPresent()) {
+            User user = userOpt.get();
+            if(user.isEnabled())
+                eventPublisher.publishEvent(new OnPasswordResetRequestedEvent(this, user));
+        }
+
+        return ResponseEntity.ok(Map.of("message", "If account exists with this email, a password reset link has been sent."));
+    }
+
+    @Override
+    public void saveVerificationTokenForUser(User user, String token){
+        UserVerificationToken userVerificationToken = new UserVerificationToken(token, user);
+        userVerificationTokenRepository.save(userVerificationToken);
+    }
+
+    @Override
+    public ResponseEntity<MessageResponse> validateVerificationToken(String token){
+        Optional<UserVerificationToken> optionalUserVerificationToken = userVerificationTokenRepository.findByToken(token);
+
+        if(optionalUserVerificationToken.isEmpty())
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new MessageResponse("Error: Token not found!!"));
+        UserVerificationToken userVerificationToken = optionalUserVerificationToken.get();
+        if(userVerificationToken.isExpired())
+            return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(new MessageResponse("Error: Token Expired!!"));
+
+        User user = userVerificationToken.getUser();
+        user.setEnabled(true);
+        userRepository.save(user);
+        userVerificationTokenRepository.delete(userVerificationToken);
+
+        return ResponseEntity.ok(new MessageResponse("Token validated successfully!"));
     }
 
     @Override

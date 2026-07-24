@@ -1,19 +1,20 @@
 package com.ecommerce.project.controller;
 
 import com.ecommerce.project.config.AppConstants;
-import com.ecommerce.project.model.AppRole;
-import com.ecommerce.project.model.Role;
-import com.ecommerce.project.model.User;
+
 import com.ecommerce.project.payload.AuthenticationResult;
-import com.ecommerce.project.repositories.RoleRepository;
-import com.ecommerce.project.repositories.UserRepository;
-import com.ecommerce.project.security.jwt.JwtUtils;
+import com.ecommerce.project.payload.ForgotPasswordRequestDTO;
+import com.ecommerce.project.payload.ResetPasswordRequestDTO;
+
 import com.ecommerce.project.security.request.LoginRequest;
 import com.ecommerce.project.security.request.SignupRequest;
 import com.ecommerce.project.security.response.MessageResponse;
-import com.ecommerce.project.security.response.UserInfoResponse;
-import com.ecommerce.project.security.services.UserDetailsImpl;
+
 import com.ecommerce.project.service.AuthService;
+import com.ecommerce.project.service.PasswordResetTokenService;
+import com.ecommerce.project.service.RateLimiterService;
+import io.github.bucket4j.Bucket;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -23,16 +24,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -53,6 +50,10 @@ public class AuthController {
 
     @Autowired
     AuthService authService;
+    @Autowired
+    RateLimiterService rateLimiterService;
+    @Autowired
+    PasswordResetTokenService passwordResetTokenService;
 
 @PostMapping("/signin")
 public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
@@ -72,6 +73,58 @@ public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signupRequest){
         return authService.register(signupRequest);
+    }
+
+    @GetMapping("/verify")
+    public ResponseEntity<?> verifyAccount(@RequestParam("token") String token){
+        return authService.validateVerificationToken(token);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequestDTO forgotPasswordRequestDTO,
+            HttpServletRequest httpRequest
+    ){
+        String clientIP = httpRequest.getRemoteAddr();
+        Bucket bucket = rateLimiterService.resolveBucket("forgot-pw" + clientIP);
+
+        if(!bucket.tryConsume(1)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Too many requests. Please try again later."));
+        }
+        return authService.forgotPassword(forgotPasswordRequestDTO);
+    }
+
+    @GetMapping("/reset-password/validate")
+    public ResponseEntity<?> validateResetToken(@RequestParam("token") String token){
+        String result = passwordResetTokenService.validateToken(token);
+        return switch (result) {
+            case "VALID" -> ResponseEntity.ok().body(Map.of("valid", true));
+            case "EXPIRED" -> ResponseEntity.badRequest().body(Map.of("valid", false, "reason", "This reset link has expired. Kindly request a new one."));
+            case "ALREADY_USED" -> ResponseEntity.badRequest().body(Map.of("valid", false, "reason", "This reset link has already been used."));
+            default -> ResponseEntity.badRequest().body(Map.of("valid", false, "reason", "Invalid reset link. "));
+        };
+    }
+
+
+    @GetMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody
+                                           ResetPasswordRequestDTO request,
+                                           HttpServletRequest httpRequest){
+        String clientIP = httpRequest.getRemoteAddr();
+        Bucket bucket = rateLimiterService.resolveBucket("reset-pw" +  clientIP);
+        if(!bucket.tryConsume(1)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Too many requests. Please try again later."));
+        }
+
+        String result = passwordResetTokenService.resetPassword(request.getToken(), request.getNewPassword());
+        return switch (result) {
+            case "SUCCESS" -> ResponseEntity.ok().body(Map.of("message", "Password reset successfully. You can now log in."));
+            case "EXPIRED" -> ResponseEntity.badRequest().body(Map.of("message", "This reset link has expired. Kindly request a new one."));
+            case "ALREADY_USED" -> ResponseEntity.badRequest().body(Map.of("message", "This reset link has already been used."));
+            default -> ResponseEntity.badRequest().body(Map.of("message", "Invalid reset link. "));
+        };
     }
 
     @GetMapping("/username")
