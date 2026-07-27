@@ -1,4 +1,4 @@
-package com.ecommerce.project.security.response;
+package com.ecommerce.project.security.dto;
 
 import java.util.List;
 
@@ -14,6 +14,13 @@ public class UserInfoResponse {
         this.username = username;
         this.email = email;
         this.jwtToken = jwtToken;
+        this.roles = roles;
+    }
+
+    public UserInfoResponse(Long id, String email, String username, List<String> roles) {
+        this.id = id;
+        this.username = username;
+        this.email = email;
         this.roles = roles;
     }
 

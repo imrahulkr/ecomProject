@@ -5,11 +5,7 @@ import com.ecommerce.project.payload.AuthenticationResult;
 import com.ecommerce.project.payload.ForgotPasswordRequestDTO;
 import com.ecommerce.project.payload.PasswordChangeRequestDTO;
 import com.ecommerce.project.payload.UserResponse;
-import com.ecommerce.project.security.request.LoginRequest;
-import com.ecommerce.project.security.request.SignupRequest;
-import com.ecommerce.project.security.response.MessageResponse;
-import com.ecommerce.project.security.response.UserInfoResponse;
-import jakarta.validation.Valid;
+import com.ecommerce.project.security.dto.*;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +21,7 @@ public interface AuthService {
 
     ResponseEntity<Map<String, String>> forgotPassword(ForgotPasswordRequestDTO forgotPasswordRequestDTO);
 
-    ResponseEntity<MessageResponse> validateVerificationToken(String token);
+    ResponseEntity<MessageResponse> validateEmailVerificationToken(String token);
 
     UserInfoResponse getCurrentUserDetails(Authentication authentication);
 
@@ -35,5 +31,5 @@ public interface AuthService {
 
     void saveVerificationTokenForUser(User user, String token);
 
-    void changePassword(UserDetails userDetails, PasswordChangeRequestDTO passwordChangeRequestDTO);
+    void changePassword(JwtPrincipal userDetails, PasswordChangeRequestDTO passwordChangeRequestDTO);
 }

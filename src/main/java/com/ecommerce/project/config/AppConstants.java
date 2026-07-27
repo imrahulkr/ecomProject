@@ -10,4 +10,5 @@ public class AppConstants {
     public static final String SORT_USERS_BY = "userId";
     public static final int VERIFICATION_EXPIRATION_MINUTES = 15;
     public static final int PASSWORD_RESET_EXPIRATION_MINUTES = 30;
+    public static final String FRONTEND_OAUTH_ERROR_URL = "https://frontend.com/oauth/error";
 }

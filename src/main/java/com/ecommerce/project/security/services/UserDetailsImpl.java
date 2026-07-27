@@ -1,5 +1,6 @@
 package com.ecommerce.project.security.services;
 
+import com.ecommerce.project.model.OAuthAccount;
 import com.ecommerce.project.model.User;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
@@ -8,6 +9,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -20,31 +22,38 @@ public class UserDetailsImpl implements UserDetails {
     private Long id;
     private String username;
     private String email;
-
+    private boolean enabled;
     @JsonIgnore
     private String password;
 
     private Collection<? extends GrantedAuthority> authorities;
+    private List<OAuthAccount> oAuthAccounts = new ArrayList<>();
 
-    public UserDetailsImpl(Long id, String username, String email, String password,
-                           Collection<? extends GrantedAuthority> authorities) {
+
+    public UserDetailsImpl(Long id, String username, String email, boolean enabled, String password,
+                           Collection<? extends GrantedAuthority> authorities, List<OAuthAccount> oAuthAccounts) {
         this.id = id;
         this.username = username;
         this.email = email;
+        this.enabled = enabled;
         this.password = password;
         this.authorities = authorities;
+        this.oAuthAccounts = oAuthAccounts;
     }
 
     public static UserDetailsImpl build(User user) {
         List<GrantedAuthority> authorities = user.getRoles().stream()
                 .map(role -> new SimpleGrantedAuthority(role.getRoleName().name()))
                 .collect(Collectors.toList());
+
         return new UserDetailsImpl(
                 user.getUserId(),
                 user.getUsername(),
                 user.getEmail(),
+                user.isEnabled(),
                 user.getPassword(),
-                authorities
+                authorities,
+                user.getOAuthAccounts()
         );
     }
 
@@ -58,10 +67,7 @@ public class UserDetailsImpl implements UserDetails {
         return password;
     }
 
-    @Override
-    public String getUsername() {
-        return username;
-    }
+
 
     @Override
     public boolean isAccountNonExpired() {
@@ -84,7 +90,7 @@ public class UserDetailsImpl implements UserDetails {
     @Override
     public boolean isEnabled() {
         //return UserDetails.super.isEnabled();
-        return true;
+        return UserDetails.super.isEnabled();
     }
 
     @Override

@@ -2,15 +2,15 @@ package com.ecommerce.project.controller;
 
 import com.ecommerce.project.config.AppConstants;
 
-import com.ecommerce.project.model.User;
 import com.ecommerce.project.payload.AuthenticationResult;
 import com.ecommerce.project.payload.ForgotPasswordRequestDTO;
 import com.ecommerce.project.payload.PasswordChangeRequestDTO;
 import com.ecommerce.project.payload.ResetPasswordRequestDTO;
 
-import com.ecommerce.project.security.request.LoginRequest;
-import com.ecommerce.project.security.request.SignupRequest;
-import com.ecommerce.project.security.response.MessageResponse;
+import com.ecommerce.project.security.dto.JwtPrincipal;
+import com.ecommerce.project.security.dto.LoginRequest;
+import com.ecommerce.project.security.dto.SignupRequest;
+import com.ecommerce.project.security.dto.MessageResponse;
 
 import com.ecommerce.project.service.AuthService;
 import com.ecommerce.project.service.PasswordResetTokenService;
@@ -38,50 +38,31 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-//    @Autowired
-//    private JwtUtils jwtUtils;
-//    @Autowired
-//    private AuthenticationManager authenticationManager;
-//
-//    @Autowired
-//    UserRepository userRepository;
-//
-//    @Autowired
-//    PasswordEncoder encoder;
-//
-//    @Autowired
-//    RoleRepository roleRepository;
 
-    @Autowired
-    AuthService authService;
-    @Autowired
-    RateLimiterService rateLimiterService;
-    @Autowired
-    PasswordResetTokenService passwordResetTokenService;
+    private  final AuthService authService;
+    private  final RateLimiterService rateLimiterService;
+    private  final PasswordResetTokenService passwordResetTokenService;
 
-@PostMapping("/signin")
-public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
-    AuthenticationResult authenticationResult = authService.login(loginRequest);
-//    AuthenticationResult authenticationResult;
-//    try{
-//        authenticationResult = authService.login(loginRequest);
-//    } catch (AuthenticationException exception) {
-//        Map<String, Object> map = new HashMap<>();
-//        map.put("message", "Bad credentials");
-//        map.put("status", false);
-//        return new ResponseEntity<>(map, HttpStatus.NOT_FOUND);
+    public AuthController(AuthService authService, RateLimiterService rateLimiterService, PasswordResetTokenService passwordResetTokenService) {
+        this.authService = authService;
+        this.rateLimiterService = rateLimiterService;
+        this.passwordResetTokenService = passwordResetTokenService;
+    }
+
+//    @PostMapping("/signin")
+//    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
+//        AuthenticationResult authenticationResult = authService.login(loginRequest);
+//        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, authenticationResult.getJwtCookie().toString()).body(authenticationResult.getResponse());
 //    }
-    return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, authenticationResult.getJwtCookie().toString()).body(authenticationResult.getResponse());
-}
 
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signupRequest){
         return authService.register(signupRequest);
     }
 
-    @GetMapping("/verify")
-    public ResponseEntity<?> verifyAccount(@RequestParam("token") String token){
-        return authService.validateVerificationToken(token);
+    @GetMapping("/verif-yemail")
+    public ResponseEntity<?> verifyUserEmail(@RequestParam("token") String token){
+        return authService.validateEmailVerificationToken(token);
     }
 
     @PostMapping("/forgot-password")
@@ -100,7 +81,7 @@ public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest
     }
 
     @GetMapping("/reset-password/validate")
-    public ResponseEntity<?> validateResetToken(@RequestParam("token") String token){
+    public ResponseEntity<?> validatePasswordResetToken(@RequestParam("token") String token){
         String result = passwordResetTokenService.validateToken(token);
         return switch (result) {
             case "VALID" -> ResponseEntity.ok().body(Map.of("valid", true));
@@ -112,7 +93,7 @@ public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest
 
 
     @GetMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@Valid @RequestBody
+    public ResponseEntity<?> resetPasswordRequest(@Valid @RequestBody
                                            ResetPasswordRequestDTO request,
                                            HttpServletRequest httpRequest){
         String clientIP = httpRequest.getRemoteAddr();
@@ -134,7 +115,7 @@ public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest
     @PostMapping("/change-password")
     public ResponseEntity<?> changePassword(@Valid @RequestBody
                                             PasswordChangeRequestDTO passwordChangeRequestDTO,
-                                            @AuthenticationPrincipal UserDetails userDetails
+                                            @AuthenticationPrincipal JwtPrincipal userDetails
     ){
         authService.changePassword(userDetails, passwordChangeRequestDTO);
         return ResponseEntity.ok().body(Map.of("message", "Password changed successfully"));
@@ -148,16 +129,14 @@ public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest
 
     @GetMapping("/user")
     public ResponseEntity<?> getUserDetails(Authentication authentication){
-
         return ResponseEntity.ok(authService.getCurrentUserDetails(authentication));
     }
 
-    @PostMapping("/signout")
-    public ResponseEntity<?> signout(){
-//        ResponseCookie cleanCookie = jwtUtils.getJwtCleanCookies();
-        ResponseCookie cleanCookie = authService.logout();
-        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cleanCookie.toString()).body(new MessageResponse("You have been signed out Successfully!!"));
-    }
+//    @PostMapping("/signout")
+//    public ResponseEntity<?> signout(){
+//        ResponseCookie cleanCookie = authService.logout();
+//        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cleanCookie.toString()).body(new MessageResponse("You have been signed out Successfully!!"));
+//    }
 
 
     @GetMapping("/sellers")
@@ -169,93 +148,5 @@ public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest
         Pageable pageDetails = PageRequest.of(pageNumber, Integer.parseInt(AppConstants.PAGE_SIZE), sortByAndorder);
         return ResponseEntity.ok(authService.getAllSellers(pageDetails));
     }
-
-
-    //    @PostMapping("/signin")
-//    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
-//        Authentication authentication;
-//        try{
-//            authentication = authenticationManager.authenticate(
-//                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
-//            );
-//        } catch (AuthenticationException exception) {
-//            Map<String, Object> map = new HashMap<>();
-//            map.put("message", "Bad credentials");
-//            map.put("status", false);
-//            return new ResponseEntity<>(map, HttpStatus.NOT_FOUND);
-//        }
-//
-//        SecurityContextHolder.getContext().setAuthentication(authentication);
-//        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-//        //String jwtToken = jwtUtils.generateTokenFromUsername(userDetails);
-//        ResponseCookie jwtCookies = jwtUtils.generateJwtCookies(userDetails);
-//
-//        List<String> roles = userDetails.getAuthorities().stream()
-//                .map(item -> item.getAuthority())
-//                .collect(Collectors.toList());
-////         UserInfoResponse response = new UserInfoResponse(userDetails.getId(), userDetails.getEmail(), userDetails.getUsername(), roles, jwtToken);
-//        UserInfoResponse response = new UserInfoResponse(userDetails.getId(), userDetails.getEmail(), userDetails.getUsername(), roles, jwtCookies.toString());
-//        // return ResponseEntity.ok(response);
-////        UserInfoResponse response = new UserInfoResponse(userDetails.getId(), userDetails.getUsername(), roles);
-//        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, jwtCookies.toString()).body(response);
-//    }
-
-    //    @PostMapping("/signup")
-//    public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signupRequest){
-//        if(userRepository.existsByUsername(signupRequest.getUsername())) {
-//            //return new ResponseEntity<>("Username is already in use", HttpStatus.BAD_REQUEST);
-//            return ResponseEntity.badRequest().body(new MessageResponse("Error: Username already exist!!"));
-//        }
-//        if(userRepository.existsByEmail(signupRequest.getEmail())){
-//            return ResponseEntity.badRequest().body(new MessageResponse("Error: Email already exist!!"));
-//        }
-//        User user = new User(
-//                signupRequest.getUsername(),
-//                signupRequest.getEmail(),
-//                encoder.encode(signupRequest.getPassword())
-//        );
-//
-//        Set<String> strRoles = signupRequest.getRole();
-//        Set<Role> roles = new HashSet<>();
-//
-//        if(strRoles==null) {
-//            Role userRole = roleRepository.findByRoleName(AppRole.ROLE_USER)
-//                    .orElseThrow(() -> new RuntimeException("Error : Role is not Found !!!!!! "));
-//            roles.add(userRole);
-//        } else{
-//            strRoles.forEach(role -> {
-//                switch (role) {
-//                    case "admin":
-//                        Role adminRole = roleRepository.findByRoleName(AppRole.ROLE_ADMIN)
-//                                .orElseThrow(() -> new RuntimeException("Error : Role is not Found !!!!!! "));
-//                        roles.add(adminRole);
-//                        break;
-//                    case "seller":
-//                        Role sellerRole = roleRepository.findByRoleName(AppRole.ROLE_SELLER)
-//                                .orElseThrow(() -> new RuntimeException("Error : Role is not Found !!!!!! "));
-//                        roles.add(sellerRole);
-//                        break;
-//                    default:
-//                        Role userRole = roleRepository.findByRoleName(AppRole.ROLE_USER)
-//                                .orElseThrow(() -> new RuntimeException("Error : Role is not Found !!!!!! "));
-//                        roles.add(userRole);
-//                }
-//            });
-//        }
-//        user.setRoles(roles);
-//        userRepository.save(user);
-//        return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
-//    }
-
-
-    //    @GetMapping("/user")
-//    public ResponseEntity<?> getUserDetails(Authentication authentication){
-//        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-//        List<String> roles = userDetails.getAuthorities().stream()
-//                .map(item -> item.getAuthority())
-//                .collect(Collectors.toList());
-//        UserInfoResponse response = new UserInfoResponse(userDetails.getId(), userDetails.getUsername(), roles);
-//        return ResponseEntity.ok(response);
-//    }
 
 }

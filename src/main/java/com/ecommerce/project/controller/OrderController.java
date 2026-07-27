@@ -3,6 +3,7 @@ package com.ecommerce.project.controller;
 
 import com.ecommerce.project.config.AppConstants;
 import com.ecommerce.project.payload.*;
+import com.ecommerce.project.security.dto.JwtPrincipal;
 import com.ecommerce.project.security.services.UserDetailsImpl;
 import com.ecommerce.project.service.OrderService;
 import com.ecommerce.project.service.StripeService;
@@ -73,8 +74,8 @@ public class OrderController {
             @RequestBody OrderStatusUpdateDTO orderStatusUpdateDTO,
             Authentication authentication
     ){
-        UserDetailsImpl userDetails= (UserDetailsImpl) authentication.getPrincipal();
-        String emailId = userDetails.getEmail();
+        JwtPrincipal userDetails= (JwtPrincipal) authentication.getPrincipal();
+        String emailId = userDetails.email();
 
         OrderDTO orderDTO = orderService.updateOrder(emailId, orderId, orderStatusUpdateDTO.getStatus());
         return new ResponseEntity<>(orderDTO, HttpStatus.OK);
@@ -86,8 +87,8 @@ public class OrderController {
             @RequestBody OrderStatusUpdateDTO orderStatusUpdateDTO,
             Authentication authentication
     ){
-        UserDetailsImpl userDetails= (UserDetailsImpl) authentication.getPrincipal();
-        String emailId = userDetails.getEmail();
+        JwtPrincipal userDetails= (JwtPrincipal) authentication.getPrincipal();
+        String emailId = userDetails.email();
 
         OrderDTO orderDTO = orderService.updateOrder(emailId, orderId, orderStatusUpdateDTO.getStatus());
         return new ResponseEntity<>(orderDTO, HttpStatus.OK);

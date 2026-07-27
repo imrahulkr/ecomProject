@@ -7,17 +7,13 @@ import com.ecommerce.project.model.User;
 import com.ecommerce.project.model.UserVerificationToken;
 import com.ecommerce.project.notification.email.event.OnPasswordChangedEvent;
 import com.ecommerce.project.notification.email.event.OnPasswordResetRequestedEvent;
-import com.ecommerce.project.notification.email.event.OnRegistrationCompleteEvent;
 import com.ecommerce.project.notification.email.event.OnUserRegisteredEvent;
 import com.ecommerce.project.payload.*;
 import com.ecommerce.project.repositories.RoleRepository;
 import com.ecommerce.project.repositories.UserRepository;
 import com.ecommerce.project.repositories.UserVerificationTokenRepository;
+import com.ecommerce.project.security.dto.*;
 import com.ecommerce.project.security.jwt.JwtUtils;
-import com.ecommerce.project.security.request.LoginRequest;
-import com.ecommerce.project.security.request.SignupRequest;
-import com.ecommerce.project.security.response.MessageResponse;
-import com.ecommerce.project.security.response.UserInfoResponse;
 import com.ecommerce.project.security.services.UserDetailsImpl;
 import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
@@ -70,8 +66,13 @@ public class AuthServiceImpl implements AuthService{
 
     @Override
     public AuthenticationResult login(LoginRequest loginRequest) {
+//        Authentication authentication = authenticationManager.authenticate(
+//                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
+//        );
+
+
         Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
+                new UsernamePasswordAuthenticationToken(loginRequest.username(), loginRequest.password())
         );
         SecurityContextHolder.getContext().setAuthentication(authentication);
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
@@ -86,20 +87,29 @@ public class AuthServiceImpl implements AuthService{
 
     @Override
     public ResponseEntity<MessageResponse> register(SignupRequest signupRequest) {
-        if(userRepository.existsByUsername(signupRequest.getUsername())) {
+//        if(userRepository.existsByUsername(signupRequest.getUsername())) {
+        if(userRepository.existsByUsername(signupRequest.username())) {
             //return new ResponseEntity<>("Username is already in use", HttpStatus.BAD_REQUEST);
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Username already exist!!"));
         }
-        if(userRepository.existsByEmail(signupRequest.getEmail())){
+//        if(userRepository.existsByEmail(signupRequest.getEmail())){
+        if(userRepository.existsByEmail(signupRequest.email())){
             return ResponseEntity.badRequest().body(new MessageResponse("Error: Email already exist!!"));
         }
+//        User user = new User(
+//                signupRequest.getUsername(),
+//                signupRequest.getEmail(),
+//                encoder.encode(signupRequest.getPassword())
+//        );
+
         User user = new User(
-                signupRequest.getUsername(),
-                signupRequest.getEmail(),
-                encoder.encode(signupRequest.getPassword())
+                signupRequest.username(),
+                signupRequest.email(),
+                encoder.encode(signupRequest.password())
         );
 
-        Set<String> strRoles = signupRequest.getRole();
+//        Set<String> strRoles = signupRequest.getRole();
+        Set<String> strRoles = signupRequest.role();
         Set<Role> roles = new HashSet<>();
 
         if(strRoles==null) {
@@ -153,11 +163,11 @@ public class AuthServiceImpl implements AuthService{
     }
 
     @Override
-    public void changePassword(UserDetails userDetails, PasswordChangeRequestDTO requestPasswordChangeRequestDTO) {
+    public void changePassword(JwtPrincipal userDetails, PasswordChangeRequestDTO requestPasswordChangeRequestDTO) {
 
         if(userDetails == null) throw new APIException("Error : User not logged in");
 
-        User user = userRepository.findByUsername(userDetails.getUsername()).orElseThrow(() -> new UsernameNotFoundException("Error : Username not found!!!"));
+        User user = userRepository.findByUsername(userDetails.userName()).orElseThrow(() -> new UsernameNotFoundException("Error : Username not found!!!"));
 
         if(!encoder.matches(requestPasswordChangeRequestDTO.getCurrentPassword(), user.getPassword())) {
             throw new BadCredentialsException("Current password is incorrect");
@@ -173,7 +183,7 @@ public class AuthServiceImpl implements AuthService{
     }
 
     @Override
-    public ResponseEntity<MessageResponse> validateVerificationToken(String token){
+    public ResponseEntity<MessageResponse> validateEmailVerificationToken(String token){
         Optional<UserVerificationToken> optionalUserVerificationToken = userVerificationTokenRepository.findByToken(token);
 
         if(optionalUserVerificationToken.isEmpty())
@@ -192,11 +202,11 @@ public class AuthServiceImpl implements AuthService{
 
     @Override
     public UserInfoResponse getCurrentUserDetails(Authentication authentication) {
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        List<String> roles = userDetails.getAuthorities().stream()
+        JwtPrincipal userDetails = (JwtPrincipal) authentication.getPrincipal();
+        List<String> roles = userDetails.authorities().stream()
                 .map(item -> item.getAuthority())
                 .collect(Collectors.toList());
-        return new UserInfoResponse(userDetails.getId(), userDetails.getUsername(), roles);
+        return new UserInfoResponse(userDetails.userId(), userDetails.email(), userDetails.userName(), roles);
     }
 
     @Override

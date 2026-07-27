@@ -1,4 +1,4 @@
-package com.ecommerce.project.security.response;
+package com.ecommerce.project.security.dto;
 
 public class MessageResponse {
     private String message;
