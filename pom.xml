@@ -19,8 +19,8 @@
 
     <properties>
         <!-- Spring Boot 4 requires Java 17+, you’re already on 25 which is fine -->
-        <java.version>25</java.version>
-        <jjwt.version>0.12.6</jjwt.version>
+        <java.version>21</java.version>
+        <jjwt.version>0.13.0</jjwt.version>
     </properties>
 
     <dependencies>
@@ -56,18 +56,18 @@
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
-            <version>0.13.0</version>
+            <version>${jjwt.version}</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
-            <version>0.13.0</version>
+            <version>${jjwt.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
-            <version>0.13.0</version>
+            <version>${jjwt.version}</version>
             <scope>runtime</scope>
         </dependency>
 
@@ -164,24 +164,6 @@
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-database-postgresql</artifactId>
-        </dependency>
-
-        <!-- ========== JWT =========== -->
-
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-api</artifactId>
-            <version>${jjwt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-            <version>${jjwt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
-            <version>${jjwt.version}</version>
         </dependency>
 
     </dependencies>
