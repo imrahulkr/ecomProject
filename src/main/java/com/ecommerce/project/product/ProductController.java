@@ -3,6 +3,7 @@ package com.ecommerce.project.product;
 import com.ecommerce.project.config.AppConstants;
 import com.ecommerce.project.product.dto.ProductDTO;
 import com.ecommerce.project.product.dto.ProductResponse;
+import com.ecommerce.project.util.AuthUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class ProductController {
     private final ProductService productService;
+    private final AuthUtil authUtil;
 
     @PostMapping("/admin/categories/{categoryId}/product")
     public ResponseEntity<ProductDTO> addProduct(@RequestBody ProductDTO productDTO, @PathVariable Long categoryId) {
@@ -95,5 +97,32 @@ public class ProductController {
     ){
         ProductResponse productResponse = productService.getAllProductForSeller(pageNumber, pageSize, sortBy, sortOrder);
         return ResponseEntity.status(HttpStatus.OK).body(productResponse);
+    }
+
+    // Seller-owned catalog management. Create reuses the same addProduct() the admin route uses
+    // (it already assigns ownership from the caller); update/delete/image go through the
+    // ownership-scoped service methods so a seller can't touch another seller's product at all.
+    @PostMapping("/seller/categories/{categoryId}/products")
+    public ResponseEntity<ProductDTO> addProductAsSeller(@RequestBody ProductDTO productDTO, @PathVariable Long categoryId) {
+        ProductDTO savedProductDTO = productService.addProduct(categoryId, productDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedProductDTO);
+    }
+
+    @PutMapping("/seller/products/{productId}")
+    public ResponseEntity<ProductDTO> updateProductAsSeller(@RequestBody ProductDTO productDTO, @PathVariable Long productId) {
+        ProductDTO updatedProductDTO = productService.updateProductAsSeller(authUtil.loggedInUserId(), productId, productDTO);
+        return ResponseEntity.status(HttpStatus.OK).body(updatedProductDTO);
+    }
+
+    @DeleteMapping("/seller/products/{productId}")
+    public ResponseEntity<ProductDTO> deleteProductAsSeller(@PathVariable Long productId) {
+        ProductDTO deletedProductDTO = productService.deleteProductAsSeller(authUtil.loggedInUserId(), productId);
+        return ResponseEntity.status(HttpStatus.OK).body(deletedProductDTO);
+    }
+
+    @PutMapping("/seller/products/{productId}/image")
+    public ResponseEntity<ProductDTO> updateProductImageAsSeller(@PathVariable Long productId, @RequestParam("Image") MultipartFile image) throws IOException {
+        ProductDTO updatedProductDTO = productService.updateProductImageAsSeller(authUtil.loggedInUserId(), productId, image);
+        return new ResponseEntity<>(updatedProductDTO, HttpStatus.OK);
     }
 }

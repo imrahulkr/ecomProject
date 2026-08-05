@@ -2,56 +2,34 @@ package com.ecommerce.project.order;
 
 
 import com.ecommerce.project.config.AppConstants;
-import com.ecommerce.project.security.dto.JwtPrincipal;
-import com.ecommerce.project.payment.StripeService;
 import com.ecommerce.project.util.AuthUtil;
-import com.stripe.exception.StripeException;
-import com.stripe.model.PaymentIntent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import com.ecommerce.project.order.dto.FulfillmentUpdateDTO;
 import com.ecommerce.project.order.dto.OrderDTO;
-import com.ecommerce.project.order.dto.OrderRequestDTO;
+import com.ecommerce.project.order.dto.OrderItemDTO;
 import com.ecommerce.project.order.dto.OrderResponse;
-import com.ecommerce.project.order.dto.OrderStatusUpdateDTO;
-import com.ecommerce.project.payment.dto.StripePaymentDTO;
 
+// Admin order listing/override moved to admin.AdminOrderController - see its comment for why.
+// The seller order-status endpoint that used to live here was removed outright: it let any
+// seller change the status of any order by id with no ownership check, and it overwrote the
+// order's customer email as a side effect. Real seller-scoped fulfillment control lands in
+// Phase 7 once fulfillment status is tracked per line item instead of per whole order.
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
 public class OrderController {
 
     private final AuthUtil authUtil;
-    private final StripeService stripeService;
     private final OrderService orderService;
 
-    @PostMapping("/order/users/payments/{paymentMethod}")
-    public ResponseEntity<OrderDTO> orderProducts(@PathVariable String paymentMethod,
-                                                  @RequestBody OrderRequestDTO orderRequestDTO) {
+    @GetMapping("/orders/{orderId}")
+    public ResponseEntity<OrderDTO> getOrder(@PathVariable Long orderId) {
         String emailId = authUtil.loggedInEmail();
-        OrderDTO orderDTO =  orderService.placeOrder(emailId, orderRequestDTO.getAddressId(), paymentMethod,
-                orderRequestDTO.getPgName(), orderRequestDTO.getPgPaymentId(),
-                orderRequestDTO.getPgStatus(), orderRequestDTO.getPgResponseMessage());
-        return new ResponseEntity<>(orderDTO, HttpStatus.CREATED);
-    }
-
-    @PostMapping("/order/stripe-client-secret")
-    public ResponseEntity<String> createStripeClientSecret(@RequestBody StripePaymentDTO stripePaymentDTO) throws StripeException {
-        PaymentIntent paymentIntent = stripeService.paymentIntent(stripePaymentDTO);
-        return new ResponseEntity<>(paymentIntent.getClientSecret(), HttpStatus.CREATED);
-    }
-
-    @GetMapping("/admin/orders")
-    public ResponseEntity<OrderResponse> getAllOrders(
-            @RequestParam(name = "pageNumber", defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,
-            @RequestParam(name = "pageSize", defaultValue = AppConstants.PAGE_SIZE, required = false) Integer pageSize,
-            @RequestParam(name = "sortBy", defaultValue = AppConstants.SORT_ORDER_BY, required = false) String sortBy,
-            @RequestParam(name = "sortOrder", defaultValue = AppConstants.SORT_ORDER, required = false) String sortOrder
-    ){
-        OrderResponse orderResponse = orderService.getAllOrders(pageNumber, pageSize, sortBy, sortOrder);
-        return new ResponseEntity<>(orderResponse, HttpStatus.OK);
+        OrderDTO orderDTO = orderService.getOrderByIdForUser(emailId, orderId);
+        return new ResponseEntity<>(orderDTO, HttpStatus.OK);
     }
 
     @GetMapping("/seller/orders")
@@ -65,29 +43,13 @@ public class OrderController {
         return new ResponseEntity<>(orderResponse, HttpStatus.OK);
     }
 
-    @PutMapping("/seller/orders/{orderId}/status")
-    public ResponseEntity<OrderDTO> updateOrderStatusSeller(
-            @PathVariable Long orderId,
-            @RequestBody OrderStatusUpdateDTO orderStatusUpdateDTO,
-            Authentication authentication
-    ){
-        JwtPrincipal userDetails= (JwtPrincipal) authentication.getPrincipal();
-        String emailId = userDetails.email();
-
-        OrderDTO orderDTO = orderService.updateOrder(emailId, orderId, orderStatusUpdateDTO.getStatus());
-        return new ResponseEntity<>(orderDTO, HttpStatus.OK);
-    }
-
-    @PutMapping("/admin/orders/{orderId}/status")
-    public ResponseEntity<OrderDTO> updateOrderStatus(
-            @PathVariable Long orderId,
-            @RequestBody OrderStatusUpdateDTO orderStatusUpdateDTO,
-            Authentication authentication
-    ){
-        JwtPrincipal userDetails= (JwtPrincipal) authentication.getPrincipal();
-        String emailId = userDetails.email();
-
-        OrderDTO orderDTO = orderService.updateOrder(emailId, orderId, orderStatusUpdateDTO.getStatus());
-        return new ResponseEntity<>(orderDTO, HttpStatus.OK);
+    @PutMapping("/seller/order-items/{orderItemId}/fulfillment")
+    public ResponseEntity<OrderItemDTO> updateFulfillmentStatus(
+            @PathVariable Long orderItemId,
+            @RequestBody FulfillmentUpdateDTO update
+    ) {
+        Long sellerId = authUtil.loggedInUser().getUserId();
+        OrderItemDTO orderItemDTO = orderService.updateFulfillmentStatusAsSeller(sellerId, orderItemId, update);
+        return new ResponseEntity<>(orderItemDTO, HttpStatus.OK);
     }
 }

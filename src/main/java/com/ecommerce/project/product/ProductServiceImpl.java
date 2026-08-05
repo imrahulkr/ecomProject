@@ -8,6 +8,9 @@ import com.ecommerce.project.product.dto.ProductResponse;
 import com.ecommerce.project.category.CategoryRepository;
 import com.ecommerce.project.service.FileService;
 import com.ecommerce.project.util.AuthUtil;
+import com.ecommerce.project.auth.User;
+import com.ecommerce.project.auth.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +32,7 @@ import java.util.stream.Collectors;
 public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final UserRepository userRepository;
     private final ModelMapper modelMapper;
     private final FileService fileService;
     private final AuthUtil authUtil;
@@ -39,7 +43,14 @@ public class ProductServiceImpl implements ProductService {
     @Value("${image.base.url}")
     private String imageBaseUrl;
 
+    // @Transactional on every mutating method below: each does a fetch-then-save, and without an
+    // open session spanning both, save() on the by-then-detached entity forces Hibernate through
+    // merge() instead of a plain managed-entity flush - which is what surfaced a real Hibernate
+    // bug here (a ConcurrentModificationException deep in loading the associated User's lazy
+    // `products` Set while merge() reconciles that association). Keeping the entity attached the
+    // whole time avoids merge() entirely.
     @Override
+    @Transactional
     public ProductDTO addProduct(Long categoryId, ProductDTO productDTO) {
         Category category = categoryRepository.findById(categoryId).orElseThrow(()-> new ResourceNotFoundException("Category", "categoryId", categoryId));
         Product product = modelMapper.map(productDTO, Product.class);
@@ -91,6 +102,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional
     public ProductDTO updateProduct(Long productId, ProductDTO productDTO) {
         Product existingProduct = productRepository.findById(productId).orElseThrow(()-> new ResourceNotFoundException("Product", "productId", productId));
         Product product = modelMapper.map(productDTO, Product.class);
@@ -104,6 +116,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional
     public ProductDTO deleteProduct(Long productId) {
         Product existingProduct = productRepository.findById(productId).orElseThrow(()-> new ResourceNotFoundException("Product", "productId", productId));
         productRepository.delete(existingProduct);
@@ -112,6 +125,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional
     public ProductDTO updateProductImage(Long productId, MultipartFile image) throws IOException {
         // Get Product from DB
         Product existingProduct = productRepository.findById(productId).orElseThrow(()-> new ResourceNotFoundException("Product", "productId", productId));
@@ -142,6 +156,53 @@ public class ProductServiceImpl implements ProductService {
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
         Page<Product> productPage = productRepository.findByUser(authUtil.loggedInUser(), pageDetails);
         return getProductResponseFromProductPage(productPage, pageDetails.getPageNumber());
+    }
+
+    // Admin-only viewing path: no ownership restriction on which sellerId is passed in, unlike
+    // getAllProductForSeller above which is always scoped to the caller.
+    @Override
+    public ProductResponse getAllProductsBySellerId(Long sellerId, Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
+        User seller = userRepository.findById(sellerId)
+                .orElseThrow(() -> new ResourceNotFoundException("user", "userId", sellerId));
+        Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
+        Page<Product> productPage = productRepository.findByUser(seller, pageDetails);
+        return getProductResponseFromProductPage(productPage, pageDetails.getPageNumber());
+    }
+
+    @Override
+    @Transactional
+    public ProductDTO updateProductAsSeller(Long sellerId, Long productId, ProductDTO productDTO) {
+        Product existingProduct = productRepository.findByProductIdAndUser_UserId(productId, sellerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+        Product product = modelMapper.map(productDTO, Product.class);
+        existingProduct.setSpecialPrice(product.getSpecialPrice());
+        existingProduct.setPrice(product.getPrice());
+        existingProduct.setCategory(product.getCategory());
+        existingProduct.setProductName(product.getProductName());
+        existingProduct.setDescription(product.getDescription());
+        Product updatedProduct = productRepository.save(existingProduct);
+        return modelMapper.map(updatedProduct, ProductDTO.class);
+    }
+
+    @Override
+    @Transactional
+    public ProductDTO deleteProductAsSeller(Long sellerId, Long productId) {
+        Product existingProduct = productRepository.findByProductIdAndUser_UserId(productId, sellerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+        productRepository.delete(existingProduct);
+        return modelMapper.map(existingProduct, ProductDTO.class);
+    }
+
+    @Override
+    @Transactional
+    public ProductDTO updateProductImageAsSeller(Long sellerId, Long productId, MultipartFile image) throws IOException {
+        Product existingProduct = productRepository.findByProductIdAndUser_UserId(productId, sellerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+        String fileName = fileService.uploadImage(path, image);
+        existingProduct.setImage(fileName);
+        Product updateProduct = productRepository.save(existingProduct);
+        return modelMapper.map(updateProduct, ProductDTO.class);
     }
 
 

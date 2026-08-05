@@ -1,16 +1,21 @@
 package com.ecommerce.project.order;
 
+import com.ecommerce.project.order.dto.FulfillmentUpdateDTO;
 import com.ecommerce.project.order.dto.OrderDTO;
+import com.ecommerce.project.order.dto.OrderItemDTO;
 import com.ecommerce.project.order.dto.OrderResponse;
-import jakarta.transaction.Transactional;
 
 public interface OrderService {
-    @Transactional
-    OrderDTO placeOrder(String emailId, Long addressId, String paymentMethod, String pgName, String pgPaymentId, String pgStatus, String pgResponseMessage);
+
+    OrderDTO getOrderByIdForUser(String emailId, Long orderId);
 
     OrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder);
 
-    OrderDTO updateOrder(String emailId, Long orderId, String status);
+    OrderDTO updateOrderStatusAsAdmin(Long orderId, String status);
 
     OrderResponse getAllSellerOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder);
+
+    OrderItemDTO updateFulfillmentStatusAsSeller(Long sellerId, Long orderItemId, FulfillmentUpdateDTO update);
+
+    OrderItemDTO updateFulfillmentStatusAsAdmin(Long orderItemId, FulfillmentUpdateDTO update);
 }

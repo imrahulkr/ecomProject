@@ -12,6 +12,10 @@ spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
 app.jwt.secret=CHANGE_ME
 
 stripe.secret.key=CHANGE_ME
+stripe.webhook.secret=CHANGE_ME
+razorpay.key-id=CHANGE_ME
+razorpay.key-secret=CHANGE_ME
+razorpay.webhook.secret=CHANGE_ME
 resend.api-key=CHANGE_ME
 
 app.cookie.secure=false

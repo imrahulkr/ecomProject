@@ -4,6 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import com.ecommerce.project.product.dto.ProductDTO;
+import com.ecommerce.project.order.FulfillmentStatus;
+
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -15,4 +18,9 @@ public class OrderItemDTO {
     private Double discount;
     private Double price;
     private Double orderedProductPrice;
+    private FulfillmentStatus fulfillmentStatus;
+    private String trackingNumber;
+    private String carrier;
+    private LocalDateTime shippedAt;
+    private LocalDateTime deliveredAt;
 }
