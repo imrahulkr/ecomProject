@@ -1,6 +1,6 @@
 package com.ecommerce.project.security.handler;
 
-import com.ecommerce.project.model.User;
+import com.ecommerce.project.auth.User;
 import com.ecommerce.project.security.dto.OAuthUserInfo;
 import com.ecommerce.project.security.jwt.JwtUtils;
 import com.ecommerce.project.security.services.OAuthUserService;
@@ -8,6 +8,7 @@ import com.ecommerce.project.security.services.RefreshTokenService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
@@ -24,13 +25,14 @@ import java.time.Duration;
 @Component
 public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
-    private static final String FRONTEND_CALLBACK_URL = "http://localhost:8080/oauth/callback";
-
     private final OAuthUserService oAuthUserService;
     private final JwtUtils jwtUtils;
     private final RefreshTokenService refreshTokenService;
     private final OneTimeExchangeCodeStore exchangeCodeStore;
     private final OAuth2AuthorizedClientService authorizedClientService;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     public OAuth2LoginSuccessHandler(OAuthUserService oAuthUserService, JwtUtils jwtUtils, RefreshTokenService refreshTokenService,
                                      OneTimeExchangeCodeStore exchangeCodeStore, OAuth2AuthorizedClientService authorizedClientService) {
@@ -81,7 +83,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         //Access token goes through a one-time exchange code, not directly in the URL.
         String exchangeCode = exchangeCodeStore.store(accessToken);
 
-        response.sendRedirect(FRONTEND_CALLBACK_URL + "?code=" + exchangeCode);
+        response.sendRedirect(frontendUrl + "/oauth/callback?code=" + exchangeCode);
     }
 }
 

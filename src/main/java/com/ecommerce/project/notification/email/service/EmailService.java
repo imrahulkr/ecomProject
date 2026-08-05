@@ -1,8 +1,8 @@
 package com.ecommerce.project.notification.email.service;
 
-import com.ecommerce.project.model.Cart;
-import com.ecommerce.project.model.Order;
-import com.ecommerce.project.model.User;
+import com.ecommerce.project.cart.Cart;
+import com.ecommerce.project.order.Order;
+import com.ecommerce.project.auth.User;
 
 public interface EmailService {
     void sendVerificationEmail(User user, String token);

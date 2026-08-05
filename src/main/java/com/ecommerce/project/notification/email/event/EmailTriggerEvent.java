@@ -2,6 +2,9 @@ package com.ecommerce.project.notification.email.event;
 
 import com.ecommerce.project.notification.email.model.EmailType;
 import org.springframework.context.ApplicationEvent;
+import com.ecommerce.project.cart.Cart;
+import com.ecommerce.project.order.Order;
+import com.ecommerce.project.auth.User;
 
 public class EmailTriggerEvent extends ApplicationEvent {
     private final EmailType type;

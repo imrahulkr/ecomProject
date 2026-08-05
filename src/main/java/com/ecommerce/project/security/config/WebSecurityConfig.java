@@ -1,10 +1,10 @@
 package com.ecommerce.project.security.config;
 //
-//import com.ecommerce.project.model.AppRole;
-//import com.ecommerce.project.model.Role;
-//import com.ecommerce.project.model.User;
-//import com.ecommerce.project.repositories.RoleRepository;
-//import com.ecommerce.project.repositories.UserRepository;
+//import com.ecommerce.project.auth.AppRole;
+//import com.ecommerce.project.auth.Role;
+//import com.ecommerce.project.auth.User;
+//import com.ecommerce.project.auth.RoleRepository;
+//import com.ecommerce.project.auth.UserRepository;
 //import com.ecommerce.project.security.jwt.AuthEntryPointJwt;
 //import com.ecommerce.project.security.jwt.AuthTokenFilter;
 //import com.ecommerce.project.security.services.UserDetailsServiceImpl;
@@ -196,9 +196,12 @@ public class WebSecurityConfig {
     @Autowired
     private AuthEntryPointJwt unauthorizedHandler;
 
+    @Autowired
+    private com.ecommerce.project.security.jwt.JwtUtils jwtUtils;
+
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
-        return new AuthTokenFilter();
+        return new AuthTokenFilter(jwtUtils, userDetailsService);
     }
 
 

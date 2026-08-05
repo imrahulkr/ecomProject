@@ -1,7 +1,7 @@
 package com.ecommerce.project.security.services;
 
-import com.ecommerce.project.model.OAuthAccount;
-import com.ecommerce.project.model.User;
+import com.ecommerce.project.security.OAuthAccount;
+import com.ecommerce.project.auth.User;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.NoArgsConstructor;

@@ -1,6 +1,6 @@
 package com.ecommerce.project.notification.email.event.listener;
 
-import com.ecommerce.project.model.User;
+import com.ecommerce.project.auth.User;
 import com.ecommerce.project.notification.email.event.OnPasswordResetRequestedEvent;
 import com.ecommerce.project.notification.email.service.EmailService;
 import com.ecommerce.project.service.PasswordResetTokenService;

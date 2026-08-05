@@ -1,6 +1,6 @@
 package com.ecommerce.project.security.jwt;
 
-import com.ecommerce.project.model.User;
+import com.ecommerce.project.auth.User;
 import com.ecommerce.project.security.config.JwtConfig;
 import com.ecommerce.project.security.services.UserDetailsImpl;
 import io.jsonwebtoken.*;
@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.WebUtils;
 
@@ -26,7 +25,6 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 // JWT Service
 
@@ -40,22 +38,15 @@ public class JwtUtils {
     @Value("${spring.app.jwtCookieName}")
     private String jwtCookie;
 
+    @Value("${app.cookie.secure:true}")
+    private boolean cookieSecure;
+
     private final JwtConfig jwtConfig;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public JwtUtils(JwtConfig jwtConfig) {
         this.jwtConfig = jwtConfig;
     }
-
-
-//    public String getJwtFromHeader(HttpServletRequest request) {
-//        String bearerToken = request.getHeader("Authorization");
-//        logger.debug("Authorization Header: {}", bearerToken);
-//        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-//            return bearerToken.substring(7); // Remove Bearer prefix
-//        }
-//        return null;
-//    }
 
     public String getJwtFromCookies(HttpServletRequest request) {
         Cookie cookie = WebUtils.getCookie(request, jwtCookie);
@@ -74,22 +65,20 @@ public class JwtUtils {
     }
 
     public ResponseCookie generateJwtCookies(UserDetailsImpl userPrincipal) {
-//        String jwt = generateTokenFromUsername(userPrincipal.getUsername());
         String jwt = generateTokenFromUserDetails(userPrincipal);
         return  ResponseCookie.from(jwtCookie, jwt)
                 .path("/api")
                 .maxAge(24*60*60)
                 .httpOnly(false)
-                .secure(false) // Should be true in production
+                .secure(cookieSecure)
                 .build();
     }
 
     // Use it for Logout / SignOut
     public ResponseCookie getJwtCleanCookies() {
-        ResponseCookie cookie = ResponseCookie.from(jwtCookie, null)
+        return ResponseCookie.from(jwtCookie, null)
                 .path("/api")
                 .build();
-        return cookie;
     }
 
     public String generateTokenFromUsername(String username) {
@@ -119,7 +108,6 @@ public class JwtUtils {
                 .claim("email", userPrincipal.getEmail())
                 .claim("userId", userPrincipal.getId())
                 .claim("providers", providers)
-//                .claim("authorities", userPrincipal.getAuthorities())
                 .claim("roles", roles)
                 .claim("enabled", userPrincipal.isEnabled())
                 .issuer(jwtConfig.getIssuer())
@@ -130,16 +118,6 @@ public class JwtUtils {
                 .signWith(key())
                 .compact();
     }
-
-//    public String generateTokenFromUsername(UserDetails userDetails) {
-//        String username = userDetails.getUsername();
-//        return Jwts.builder()
-//                .subject(username)
-//                .issuedAt(new Date())
-//                .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
-//                .signWith(key())
-//                .compact();
-//    }
 
     public String getUserNameFromJwtToken(String token) {
         return Jwts.parser()
@@ -156,7 +134,6 @@ public class JwtUtils {
 
     public boolean validateJwtToken(String authToken) {
         try {
-            System.out.println("Validate");
             Jwts.parser().verifyWith((SecretKey) key()).build().parseSignedClaims(authToken);
             return true;
         } catch (MalformedJwtException e) {
@@ -184,9 +161,6 @@ public class JwtUtils {
         List<String> providers = user.getOAuthAccounts().stream()
                 .map(a -> a.getProvider())
                 .toList();
-//       List<GrantedAuthority> authorities = user.getRoles().stream()
-//               .map(role -> new SimpleGrantedAuthority(role.getRoleName().name()))
-//               .collect(Collectors.toList());
 
        List<String> roles = user.getRoles().stream()
                .map(role -> role.getRoleName().name())

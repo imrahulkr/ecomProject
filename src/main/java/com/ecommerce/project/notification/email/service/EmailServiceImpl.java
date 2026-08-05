@@ -1,13 +1,15 @@
 package com.ecommerce.project.notification.email.service;
 
-import com.ecommerce.project.model.Cart;
-import com.ecommerce.project.model.Order;
-import com.ecommerce.project.model.User;
+import com.ecommerce.project.cart.Cart;
+import com.ecommerce.project.order.Order;
+import com.ecommerce.project.auth.User;
 import com.ecommerce.project.notification.email.model.EmailPriority;
 import com.ecommerce.project.notification.email.model.EmailRequest;
 import com.ecommerce.project.notification.email.model.EmailType;
 import com.ecommerce.project.notification.email.provider.EmailProvider;
 import com.ecommerce.project.notification.email.template.EmailTemplateEngine;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +18,7 @@ import java.util.Map;
 
 @Service
 public class EmailServiceImpl implements EmailService {
+    private static final Logger logger = LoggerFactory.getLogger(EmailServiceImpl.class);
 
     private final EmailTemplateEngine templateEngine;
     private final EmailRetryService emailRetryService;
@@ -38,8 +41,7 @@ public class EmailServiceImpl implements EmailService {
                 "name", user.getUsername(),
                 "verificationUrl",  baseUrl +"/api/auth/verify?token=" + token
         );
-        System.out.println("Name :: " + vars.get("name").toString());
-        System.out.println("Url :: " + vars.get("verificationUrl").toString());
+        logger.debug("Sending verification email to name={}, url={}", vars.get("name"), vars.get("verificationUrl"));
         EmailRequest request = EmailRequest.builder()
                 .to(user.getEmail())
                 .from(defaultFrom)

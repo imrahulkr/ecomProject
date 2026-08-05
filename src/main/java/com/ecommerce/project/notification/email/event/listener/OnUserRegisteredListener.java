@@ -2,7 +2,7 @@ package com.ecommerce.project.notification.email.event.listener;
 
 import com.ecommerce.project.notification.email.event.OnUserRegisteredEvent;
 import com.ecommerce.project.notification.email.service.EmailService;
-import com.ecommerce.project.service.AuthService;
+import com.ecommerce.project.auth.AuthService;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 

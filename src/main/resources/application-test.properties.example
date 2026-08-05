@@ -1,0 +1,22 @@
+# Copy this file to application-test.properties (gitignored) and fill in real local
+# values. application-test.properties must never be committed.
+
+spring.datasource.url=jdbc:postgresql://localhost:5432/ecommerce
+spring.datasource.username=postgres
+spring.datasource.password=CHANGE_ME
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+
+# Base64-encoded HMAC signing key - generate with: openssl rand -base64 32
+app.jwt.secret=CHANGE_ME
+
+stripe.secret.key=CHANGE_ME
+resend.api-key=CHANGE_ME
+
+app.cookie.secure=false
+
+logging.level.org.springframework=DEBUG
+logging.level.org.hibernate.SQL=DEBUG
+logging.level.org.springframework.security=DEBUG
+logging.level.com.ecommerce.project=DEBUG

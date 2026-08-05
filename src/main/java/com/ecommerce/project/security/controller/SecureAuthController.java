@@ -9,7 +9,7 @@ import com.ecommerce.project.security.jwt.JwtUtils;
 import com.ecommerce.project.security.services.RefreshTokenService;
 import com.ecommerce.project.security.services.SecureAuthService;
 import com.ecommerce.project.security.services.SecureAuthServiceImpl;
-import com.ecommerce.project.service.AuthService;
+import com.ecommerce.project.auth.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;

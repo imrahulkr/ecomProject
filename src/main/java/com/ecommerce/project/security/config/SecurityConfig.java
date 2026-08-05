@@ -5,7 +5,6 @@ import com.ecommerce.project.security.handler.OAuth2LoginSuccessHandler;
 import com.ecommerce.project.security.jwt.AuthEntryPointJwt;
 import com.ecommerce.project.security.jwt.AuthTokenFilter;
 import com.ecommerce.project.security.services.UserDetailsServiceImpl;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -33,19 +32,19 @@ public class SecurityConfig {
     private final AuthEntryPointJwt authEntryPointJwt; // JwtAuthenticationEntryPoint
     private final AuthTokenFilter authTokenFilter; // JwtAuthenticationFilter
     private final CorsConfigurationSource corsConfigurationSource;
-
-    @Autowired
-    UserDetailsServiceImpl userDetailsService;
+    private final UserDetailsServiceImpl userDetailsService;
 
     public SecurityConfig(OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler,
                           OAuth2LoginFailureHandler oAuth2LoginFailureHandler,
                           AuthEntryPointJwt authEntryPointJwt, AuthTokenFilter authTokenFilter,
-                          CorsConfigurationSource corsConfigurationSource) {
+                          CorsConfigurationSource corsConfigurationSource,
+                          UserDetailsServiceImpl userDetailsService) {
         this.oAuth2LoginSuccessHandler = oAuth2LoginSuccessHandler;
         this.oAuth2LoginFailureHandler = oAuth2LoginFailureHandler;
         this.authEntryPointJwt = authEntryPointJwt;
         this.authTokenFilter = authTokenFilter;
         this.corsConfigurationSource = corsConfigurationSource;
+        this.userDetailsService = userDetailsService;
     }
 
     @Bean

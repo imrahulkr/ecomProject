@@ -1,7 +1,7 @@
 package com.ecommerce.project.security.services;
 
-import com.ecommerce.project.model.User;
-import com.ecommerce.project.repositories.UserRepository;
+import com.ecommerce.project.auth.User;
+import com.ecommerce.project.auth.UserRepository;
 import com.ecommerce.project.security.dto.AuthResponse;
 import com.ecommerce.project.security.dto.LoginRequest;
 import com.ecommerce.project.security.dto.SignupRequest;

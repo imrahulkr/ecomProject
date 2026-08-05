@@ -1,8 +1,8 @@
 package com.ecommerce.project.security.services;
 
-import com.ecommerce.project.model.RefreshToken;
-import com.ecommerce.project.model.User;
-import com.ecommerce.project.repositories.RefreshTokenRepository;
+import com.ecommerce.project.security.RefreshToken;
+import com.ecommerce.project.auth.User;
+import com.ecommerce.project.security.RefreshTokenRepository;
 import com.ecommerce.project.security.exception.InvalidRefreshTokenException;
 import com.ecommerce.project.security.jwt.JwtUtils;
 import jakarta.transaction.Transactional;

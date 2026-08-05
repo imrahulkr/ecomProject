@@ -13,10 +13,10 @@ package com.ecommerce.project.security.controller;
 * need in-app linking initiated from a logged-in session.
 * */
 
-import com.ecommerce.project.model.OAuthAccount;
-import com.ecommerce.project.model.User;
-import com.ecommerce.project.repositories.OAuthAccountRepository;
-import com.ecommerce.project.repositories.UserRepository;
+import com.ecommerce.project.security.OAuthAccount;
+import com.ecommerce.project.auth.User;
+import com.ecommerce.project.security.OAuthAccountRepository;
+import com.ecommerce.project.auth.UserRepository;
 import com.ecommerce.project.security.dto.JwtPrincipal;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;

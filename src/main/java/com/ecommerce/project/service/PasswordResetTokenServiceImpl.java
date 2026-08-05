@@ -1,9 +1,9 @@
 package com.ecommerce.project.service;
 
-import com.ecommerce.project.model.PasswordResetToken;
-import com.ecommerce.project.model.User;
-import com.ecommerce.project.repositories.PasswordResetTokenRepository;
-import com.ecommerce.project.repositories.UserRepository;
+import com.ecommerce.project.auth.PasswordResetToken;
+import com.ecommerce.project.auth.User;
+import com.ecommerce.project.auth.PasswordResetTokenRepository;
+import com.ecommerce.project.auth.UserRepository;
 import jakarta.validation.Valid;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,10 +29,6 @@ public class PasswordResetTokenServiceImpl implements PasswordResetTokenService{
 
     @Override
     public String generateAndSaveToken(User user) {
-//        passwordResetTokenRepository.findByUser(user).ifPresent(passwordResetToken ->
-//            passwordResetTokenRepository.delete(passwordResetToken)
-//        );
-
         passwordResetTokenRepository.findByUser(user).ifPresent(passwordResetTokenRepository::delete);
 
         String token = UUID.randomUUID().toString();
@@ -70,7 +66,6 @@ public class PasswordResetTokenServiceImpl implements PasswordResetTokenService{
         User user = passwordResetToken.getUser();
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
-        //passwordResetTokenRepository.delete(passwordResetToken);
 
         return "SUCCESS";
     }

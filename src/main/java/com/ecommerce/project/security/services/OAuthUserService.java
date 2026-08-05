@@ -1,9 +1,9 @@
 package com.ecommerce.project.security.services;
 
-import com.ecommerce.project.model.OAuthAccount;
-import com.ecommerce.project.model.User;
-import com.ecommerce.project.repositories.OAuthAccountRepository;
-import com.ecommerce.project.repositories.UserRepository;
+import com.ecommerce.project.security.OAuthAccount;
+import com.ecommerce.project.auth.User;
+import com.ecommerce.project.security.OAuthAccountRepository;
+import com.ecommerce.project.auth.UserRepository;
 import com.ecommerce.project.security.dto.OAuthUserInfo;
 import com.ecommerce.project.security.exception.AccountLinkingRequiredException;
 import jakarta.transaction.Transactional;

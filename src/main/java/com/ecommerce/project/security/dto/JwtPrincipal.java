@@ -8,11 +8,12 @@ package com.ecommerce.project.security.dto;
 * For sensitive actoins, re-fetch the User from the DB.
 * */
 
-import com.ecommerce.project.model.OAuthAccount;
+import com.ecommerce.project.security.OAuthAccount;
 import org.springframework.security.core.GrantedAuthority;
 
 import java.util.Collection;
 import java.util.List;
+import com.ecommerce.project.auth.User;
 
 public record JwtPrincipal(String userName, String email, Long userId,
                            Collection<? extends GrantedAuthority> authorities,

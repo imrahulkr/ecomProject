@@ -1,6 +1,6 @@
 package com.ecommerce.project.service;
 
-import com.ecommerce.project.model.User;
+import com.ecommerce.project.auth.User;
 
 public interface PasswordResetTokenService {
 

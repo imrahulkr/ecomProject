@@ -1,0 +1,23 @@
+# Template for production overrides. Copy to application-prod.properties (gitignored) on
+# the deployment target and fill in real values from your secrets manager - never commit
+# real production secrets here.
+
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+
+# Never use "update" in production - use Flyway migrations and keep Hibernate read-only.
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+
+app.jwt.secret=${APP_JWT_SECRET}
+
+stripe.secret.key=${STRIPE_SECRET_KEY}
+resend.api-key=${RESEND_API_KEY}
+
+app.cookie.secure=true
+
+logging.level.org.springframework=WARN
+logging.level.org.hibernate.SQL=WARN
+logging.level.org.springframework.security=WARN
+logging.level.com.ecommerce.project=INFO
