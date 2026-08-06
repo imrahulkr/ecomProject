@@ -1,18 +1,12 @@
 package com.ecommerce.project.category.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.util.List;
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class CategoryResponse {
-    private List<CategoryDTO> content;
-    private Integer pageNumber;
-    private Integer pageSize;
-    private Long totalElement;
-    private Integer totalPages;
-    private boolean lastPage;
-}
+
+public record CategoryResponse(
+        List<CategoryDTO> content,
+        Integer pageNumber,
+        Integer pageSize,
+        Long totalElement,
+        Integer totalPages,
+        boolean lastPage
+) {}

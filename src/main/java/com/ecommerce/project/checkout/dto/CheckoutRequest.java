@@ -2,14 +2,10 @@ package com.ecommerce.project.checkout.dto;
 
 import com.ecommerce.project.payment.ProviderName;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
 
-@Data
-public class CheckoutRequest {
+public record CheckoutRequest(
+        @NotNull Long addressId,
 
-    @NotNull
-    private Long addressId;
-
-    // Optional - when omitted, the provider is picked automatically from health ranking.
-    private ProviderName provider;
-}
+        // Optional - when omitted, the provider is picked automatically from health ranking.
+        ProviderName provider
+) {}

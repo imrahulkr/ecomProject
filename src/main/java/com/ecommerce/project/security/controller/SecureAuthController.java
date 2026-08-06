@@ -52,13 +52,18 @@ public class SecureAuthController {
         return ResponseEntity.ok(Map.of("accessToken", accessToken));
     }
 
-    @PostMapping("/signup_secure")
-    public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
-        SecureAuthServiceImpl.IssuedTokens tokens = secureAuthService.signup(request);
-        return withRefreshCookie(tokens);
+    @PostMapping("/signup")
+    public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest request) {
+        return secureAuthService.signup(request);
     }
 
-    @PostMapping("/login_secure")
+    // @PostMapping("/signup_secure")
+    // public ResponseEntity<AuthResponse> signup(@Valid @RequestBody SignupRequest request) {
+    //     SecureAuthServiceImpl.IssuedTokens tokens = secureAuthService.signup(request);
+    //     return withRefreshCookie(tokens);
+    // }
+
+    @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         SecureAuthServiceImpl.IssuedTokens tokens = secureAuthService.login(request);
         return withRefreshCookie(tokens);

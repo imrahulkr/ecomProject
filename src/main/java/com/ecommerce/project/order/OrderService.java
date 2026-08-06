@@ -9,6 +9,8 @@ public interface OrderService {
 
     OrderDTO getOrderByIdForUser(String emailId, Long orderId);
 
+    OrderResponse getOrdersForUser(String emailId, Integer pageNumber, Integer pageSize, String sortBy, String sortOrder);
+
     OrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder);
 
     OrderDTO updateOrderStatusAsAdmin(Long orderId, String status);

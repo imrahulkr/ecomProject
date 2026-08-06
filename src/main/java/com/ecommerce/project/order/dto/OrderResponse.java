@@ -1,19 +1,12 @@
 package com.ecommerce.project.order.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.util.List;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class OrderResponse {
-    private List<OrderDTO> content;
-    private Integer pageNumber;
-    private Integer pageSize;
-    private Long totalElement;
-    private Integer totalPages;
-    private boolean lastPage;
-}
+public record OrderResponse(
+        List<OrderDTO> content,
+        Integer pageNumber,
+        Integer pageSize,
+        Long totalElement,
+        Integer totalPages,
+        boolean lastPage
+) {}

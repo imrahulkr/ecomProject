@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -13,7 +15,13 @@ public class ProductDTO {
     private String description;
     private String image;
     private Integer quantity;
-    private Double price;
+    private long priceMinorUnits;
     private Double discount;
-    private Double specialPrice;
+    private long specialPriceMinorUnits;
+    private String currency;
+    private Long categoryId;
+    private Long sellerId;
+    private String sellerName;
+    private Instant createdAt;
+    private Instant updatedAt;
 }

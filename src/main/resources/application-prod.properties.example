@@ -21,6 +21,17 @@ resend.api-key=${RESEND_API_KEY}
 
 app.cookie.secure=true
 
+# Product image storage - local disk (the base application.properties default) doesn't survive
+# a redeploy and isn't shared across instances, so production uses S3 instead. Credentials come
+# from the AWS default credential chain (AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY env vars, or an
+# IAM role if running on EC2/ECS/Fargate) - never put AWS keys directly in properties.
+app.file.storage.provider=s3
+app.file.storage.s3.bucket=${AWS_S3_BUCKET}
+app.file.storage.s3.region=${AWS_S3_REGION:us-east-1}
+# Point this at the bucket's public URL (or a CloudFront distribution in front of it) - it has
+# to line up with app.file.storage.s3.bucket for uploaded image links to resolve.
+image.base.url=${IMAGE_BASE_URL}
+
 logging.level.org.springframework=WARN
 logging.level.org.hibernate.SQL=WARN
 logging.level.org.springframework.security=WARN

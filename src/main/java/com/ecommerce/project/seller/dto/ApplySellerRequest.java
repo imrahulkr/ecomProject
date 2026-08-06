@@ -2,15 +2,12 @@ package com.ecommerce.project.seller.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
 
-@Data
-public class ApplySellerRequest {
+public record ApplySellerRequest(
+        @NotBlank
+        @Size(min = 3, max = 255)
+        String businessName,
 
-    @NotBlank
-    @Size(min = 3, max = 255)
-    private String businessName;
-
-    @Size(max = 2000)
-    private String businessDescription;
-}
+        @Size(max = 2000)
+        String businessDescription
+) {}

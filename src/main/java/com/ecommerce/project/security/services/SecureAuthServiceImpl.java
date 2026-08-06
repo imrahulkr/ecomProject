@@ -1,14 +1,23 @@
 package com.ecommerce.project.security.services;
 
+import com.ecommerce.project.auth.AppRole;
+import com.ecommerce.project.auth.Role;
+import com.ecommerce.project.auth.RoleRepository;
 import com.ecommerce.project.auth.User;
 import com.ecommerce.project.auth.UserRepository;
+import com.ecommerce.project.notification.email.event.OnUserRegisteredEvent;
 import com.ecommerce.project.security.dto.AuthResponse;
 import com.ecommerce.project.security.dto.LoginRequest;
+import com.ecommerce.project.security.dto.MessageResponse;
 import com.ecommerce.project.security.dto.SignupRequest;
 import com.ecommerce.project.security.exception.EmailAlreadyRegisteredException;
 import com.ecommerce.project.security.exception.PasswordSignupBlockedException;
 import com.ecommerce.project.security.jwt.JwtUtils;
 import jakarta.transaction.Transactional;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,6 +27,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class SecureAuthServiceImpl implements SecureAuthService{
@@ -27,13 +37,17 @@ public class SecureAuthServiceImpl implements SecureAuthService{
     private final JwtUtils jwtUtils;
     private final RefreshTokenService refreshTokenService;
     private final AuthenticationManager authenticationManager;
+    private final RoleRepository roleRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public SecureAuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtils jwtUtils, RefreshTokenService refreshTokenService, AuthenticationManager authenticationManager) {
+    public SecureAuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtils jwtUtils, RefreshTokenService refreshTokenService, AuthenticationManager authenticationManager, RoleRepository roleRepository, ApplicationEventPublisher eventPublisher) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
         this.refreshTokenService = refreshTokenService;
         this.authenticationManager = authenticationManager;
+        this.roleRepository = roleRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     /*
@@ -43,7 +57,7 @@ public class SecureAuthServiceImpl implements SecureAuthService{
 
     @Override
     @Transactional
-    public IssuedTokens signup(SignupRequest request){
+    public ResponseEntity<MessageResponse> signup(SignupRequest request){
         Optional<User> existing = userRepository.findByEmail(request.email());
 
         if(existing.isPresent()){
@@ -62,14 +76,20 @@ public class SecureAuthServiceImpl implements SecureAuthService{
             }
         }
 
+        Role userRole = roleRepository.findByRoleName(AppRole.ROLE_USER)
+                                .orElseThrow(() -> new RuntimeException("Error : Role is not Found !!!!!! "));
+
         User user = User.builder()
                 .email(request.email())
                 .name(request.name())
                 .password(passwordEncoder.encode(request.password()))
                 .enabled(false)
+                .roles(Set.of(userRole))
                 .build();
         user = userRepository.save(user);
-        return issueTokenFor(user);
+        eventPublisher.publishEvent(new OnUserRegisteredEvent(this, user));
+         return ResponseEntity.ok(new MessageResponse("User registered successfully, Kindly verify your email!"));
+        // return issueTokenFor(user);
     }
 
     @Override
@@ -84,6 +104,11 @@ public class SecureAuthServiceImpl implements SecureAuthService{
 //        if(!passwordEncoder.matches(request.password(), user.getPassword())){
 //            throw new BadCredentialsException("Invalid email or password.");
 //        }
+ 
+        if(!user.isEnabled()){
+            eventPublisher.publishEvent(new OnUserRegisteredEvent(this, user));
+            throw new BadCredentialsException("Account is not verified. Please verify your email before logging in.");
+        }
 
         Authentication authResult = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.username(), request.password())

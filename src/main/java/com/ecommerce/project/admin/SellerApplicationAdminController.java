@@ -47,6 +47,6 @@ public class SellerApplicationAdminController {
     @PutMapping("/{applicationId}/reject")
     public SellerApplicationDTO reject(@PathVariable Long applicationId,
                                         @Valid @RequestBody RejectSellerApplicationRequest request) {
-        return sellerApplicationService.reject(applicationId, authUtil.loggedInUserId(), request.getReason());
+        return sellerApplicationService.reject(applicationId, authUtil.loggedInUserId(), request.reason());
     }
 }

@@ -60,7 +60,8 @@ class CheckoutTransactionExecutor {
         order.setAddress(address);
         order.setOrderDate(LocalDate.now());
         order.setOrderStatus(OrderStatus.PENDING_PAYMENT.name());
-        order.setTotalAmount(cart.getTotalPrice());
+        order.setAmountMinorUnits(cart.getTotalPriceMinorUnits());
+        order.setCurrency(cart.getCurrency());
         Order savedOrder = orderRepository.save(order);
 
         List<OrderItem> orderItems = new ArrayList<>();
@@ -74,7 +75,8 @@ class CheckoutTransactionExecutor {
             orderItem.setOrder(savedOrder);
             orderItem.setQuantity(cartItem.getQuantity());
             orderItem.setDiscount(cartItem.getDiscount());
-            orderItem.setOrderedProductPrice(cartItem.getProductPrice());
+            orderItem.setOrderedProductPriceMinorUnits(cartItem.getProductPriceMinorUnits());
+            orderItem.setCurrency(cartItem.getCurrency());
             orderItem.setSellerId(cartItem.getProduct().getUser().getUserId());
             orderItems.add(orderItem);
         }

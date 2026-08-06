@@ -37,6 +37,9 @@ public class ProviderHealth {
     @Column(name = "cooldown_until")
     private Instant cooldownUntil;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
@@ -49,5 +52,8 @@ public class ProviderHealth {
     @PreUpdate
     void touch() {
         this.updatedAt = Instant.now();
+        if (this.createdAt == null) {
+            this.createdAt = this.updatedAt;
+        }
     }
 }

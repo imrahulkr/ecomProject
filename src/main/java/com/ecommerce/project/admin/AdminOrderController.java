@@ -41,7 +41,7 @@ public class AdminOrderController {
             @PathVariable Long orderId,
             @RequestBody OrderStatusUpdateDTO orderStatusUpdateDTO
     ) {
-        OrderDTO orderDTO = orderService.updateOrderStatusAsAdmin(orderId, orderStatusUpdateDTO.getStatus());
+        OrderDTO orderDTO = orderService.updateOrderStatusAsAdmin(orderId, orderStatusUpdateDTO.status());
         return new ResponseEntity<>(orderDTO, HttpStatus.OK);
     }
 }

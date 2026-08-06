@@ -113,7 +113,7 @@ public class AuthServiceImpl implements AuthService{
     @Override
     public ResponseEntity<Map<String, String>> forgotPassword(ForgotPasswordRequestDTO forgotPasswordRequestDTO) {
 
-        Optional<User> userOpt = userRepository.findByEmail(forgotPasswordRequestDTO.getEmail());
+        Optional<User> userOpt = userRepository.findByEmail(forgotPasswordRequestDTO.email());
         if(userOpt.isPresent()) {
             User user = userOpt.get();
             if(user.isEnabled())
@@ -136,15 +136,15 @@ public class AuthServiceImpl implements AuthService{
 
         User user = userRepository.findByUsername(userDetails.userName()).orElseThrow(() -> new UsernameNotFoundException("Error : Username not found!!!"));
 
-        if(!encoder.matches(requestPasswordChangeRequestDTO.getCurrentPassword(), user.getPassword())) {
+        if(!encoder.matches(requestPasswordChangeRequestDTO.currentPassword(), user.getPassword())) {
             throw new BadCredentialsException("Current password is incorrect");
         }
 
-        if(encoder.matches(requestPasswordChangeRequestDTO.getNewPassword(), user.getPassword())) {
+        if(encoder.matches(requestPasswordChangeRequestDTO.newPassword(), user.getPassword())) {
             throw new IllegalArgumentException("New password must be different form current password");
         }
 
-        user.setPassword(encoder.encode(requestPasswordChangeRequestDTO.getNewPassword()));
+        user.setPassword(encoder.encode(requestPasswordChangeRequestDTO.newPassword()));
         userRepository.save(user);
         eventPublisher.publishEvent(new OnPasswordChangedEvent(this, user));
     }
@@ -189,13 +189,13 @@ public class AuthServiceImpl implements AuthService{
                 .map(user -> modelMapper.map(user, UserDTO.class))
                 .collect(Collectors.toList());
 
-        UserResponse userResponse = new UserResponse();
-        userResponse.setContent(userDTOS);
-        userResponse.setPageNumber(allSellerUsers.getNumber());
-        userResponse.setPageSize(allSellerUsers.getSize());
-        userResponse.setTotalElements(allSellerUsers.getTotalElements());
-        userResponse.setTotalPages(allSellerUsers.getTotalPages());
-        userResponse.setLastPage(allSellerUsers.isLast());
+        UserResponse userResponse = new UserResponse(
+                userDTOS,
+                allSellerUsers.getNumber(),
+                allSellerUsers.getSize(),
+                allSellerUsers.getTotalElements(),
+                allSellerUsers.getTotalPages(),
+                allSellerUsers.isLast());
 
         return userResponse;
     }

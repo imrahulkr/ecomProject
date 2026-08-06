@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import com.ecommerce.project.product.dto.ProductDTO;
 import com.ecommerce.project.order.FulfillmentStatus;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Data
@@ -16,11 +17,14 @@ public class OrderItemDTO {
     private ProductDTO product;
     private Integer quantity;
     private Double discount;
-    private Double price;
-    private Double orderedProductPrice;
+    private long priceMinorUnits;
+    private long orderedProductPriceMinorUnits;
+    private String currency;
     private FulfillmentStatus fulfillmentStatus;
     private String trackingNumber;
     private String carrier;
     private LocalDateTime shippedAt;
     private LocalDateTime deliveredAt;
+    private Instant createdAt;
+    private Instant updatedAt;
 }

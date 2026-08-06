@@ -42,10 +42,10 @@ public class AuthController {
         this.passwordResetTokenService = passwordResetTokenService;
     }
 
-    @PostMapping("/signup")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signupRequest){
-        return authService.register(signupRequest);
-    }
+    // @PostMapping("/signup")
+    // public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signupRequest){
+    //     return authService.register(signupRequest);
+    // }
 
     @GetMapping("/verif-yemail")
     public ResponseEntity<?> verifyUserEmail(@RequestParam("token") String token){
@@ -79,7 +79,7 @@ public class AuthController {
     }
 
 
-    @GetMapping("/reset-password")
+    @PostMapping("/reset-password")
     public ResponseEntity<?> resetPasswordRequest(@Valid @RequestBody
                                            ResetPasswordRequestDTO request,
                                            HttpServletRequest httpRequest){
@@ -90,7 +90,7 @@ public class AuthController {
                     .body(Map.of("message", "Too many requests. Please try again later."));
         }
 
-        String result = passwordResetTokenService.resetPassword(request.getToken(), request.getNewPassword());
+        String result = passwordResetTokenService.resetPassword(request.token(), request.newPassword());
         return switch (result) {
             case "SUCCESS" -> ResponseEntity.ok().body(Map.of("message", "Password reset successfully. You can now log in."));
             case "EXPIRED" -> ResponseEntity.badRequest().body(Map.of("message", "This reset link has expired. Kindly request a new one."));

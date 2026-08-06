@@ -43,6 +43,9 @@ public class ProductServiceImpl implements ProductService {
     @Value("${image.base.url}")
     private String imageBaseUrl;
 
+    @Value("${app.currency}")
+    private String currency;
+
     // @Transactional on every mutating method below: each does a fetch-then-save, and without an
     // open session spanning both, save() on the by-then-detached entity forces Hibernate through
     // merge() instead of a plain managed-entity flush - which is what surfaced a real Hibernate
@@ -59,9 +62,10 @@ public class ProductServiceImpl implements ProductService {
         product.setImage("Default.png");
         product.setCategory(category);
         product.setUser(authUtil.loggedInUser());
-        product.setSpecialPrice(product.getPrice() - (product.getDiscount() * product.getPrice())/100);
+        product.setCurrency(currency);
+        product.setSpecialPriceMinorUnits(Math.round(product.getPriceMinorUnits() - (product.getDiscount() * product.getPriceMinorUnits()) / 100));
         Product savedProduct = productRepository.save(product);
-        return modelMapper.map(savedProduct, ProductDTO.class);
+        return toProductDTO(savedProduct);
     }
 
     @Override
@@ -106,13 +110,13 @@ public class ProductServiceImpl implements ProductService {
     public ProductDTO updateProduct(Long productId, ProductDTO productDTO) {
         Product existingProduct = productRepository.findById(productId).orElseThrow(()-> new ResourceNotFoundException("Product", "productId", productId));
         Product product = modelMapper.map(productDTO, Product.class);
-        existingProduct.setSpecialPrice(product.getSpecialPrice());
-        existingProduct.setPrice(product.getPrice());
+        existingProduct.setSpecialPriceMinorUnits(product.getSpecialPriceMinorUnits());
+        existingProduct.setPriceMinorUnits(product.getPriceMinorUnits());
         existingProduct.setCategory(product.getCategory());
         existingProduct.setProductName(product.getProductName());
         existingProduct.setDescription(product.getDescription());
         Product updatedProduct = productRepository.save(existingProduct);
-        return modelMapper.map(updatedProduct, ProductDTO.class);
+        return toProductDTO(updatedProduct);
     }
 
     @Override
@@ -121,7 +125,7 @@ public class ProductServiceImpl implements ProductService {
         Product existingProduct = productRepository.findById(productId).orElseThrow(()-> new ResourceNotFoundException("Product", "productId", productId));
         productRepository.delete(existingProduct);
 
-        return modelMapper.map(existingProduct, ProductDTO.class);
+        return toProductDTO(existingProduct);
     }
 
     @Override
@@ -135,7 +139,7 @@ public class ProductServiceImpl implements ProductService {
         existingProduct.setImage(fileName);
         // Save the updated product
         Product updateProduct = productRepository.save(existingProduct);
-        return modelMapper.map(updateProduct, ProductDTO.class);
+        return toProductDTO(updateProduct);
     }
 
     private String constructImageUrl(String imageName) {
@@ -176,13 +180,13 @@ public class ProductServiceImpl implements ProductService {
         Product existingProduct = productRepository.findByProductIdAndUser_UserId(productId, sellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
         Product product = modelMapper.map(productDTO, Product.class);
-        existingProduct.setSpecialPrice(product.getSpecialPrice());
-        existingProduct.setPrice(product.getPrice());
+        existingProduct.setSpecialPriceMinorUnits(product.getSpecialPriceMinorUnits());
+        existingProduct.setPriceMinorUnits(product.getPriceMinorUnits());
         existingProduct.setCategory(product.getCategory());
         existingProduct.setProductName(product.getProductName());
         existingProduct.setDescription(product.getDescription());
         Product updatedProduct = productRepository.save(existingProduct);
-        return modelMapper.map(updatedProduct, ProductDTO.class);
+        return toProductDTO(updatedProduct);
     }
 
     @Override
@@ -191,7 +195,7 @@ public class ProductServiceImpl implements ProductService {
         Product existingProduct = productRepository.findByProductIdAndUser_UserId(productId, sellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
         productRepository.delete(existingProduct);
-        return modelMapper.map(existingProduct, ProductDTO.class);
+        return toProductDTO(existingProduct);
     }
 
     @Override
@@ -202,7 +206,7 @@ public class ProductServiceImpl implements ProductService {
         String fileName = fileService.uploadImage(path, image);
         existingProduct.setImage(fileName);
         Product updateProduct = productRepository.save(existingProduct);
-        return modelMapper.map(updateProduct, ProductDTO.class);
+        return toProductDTO(updateProduct);
     }
 
 
@@ -215,18 +219,30 @@ public class ProductServiceImpl implements ProductService {
 
         List<ProductDTO> productDTOS = products.isEmpty() ? Collections.emptyList() : products.stream().map(product ->
         {
-            ProductDTO productDTO =  modelMapper.map(product, ProductDTO.class);
+            ProductDTO productDTO = toProductDTO(product);
             productDTO.setImage(constructImageUrl(product.getImage()));
             return productDTO;
         })
                 .collect(Collectors.toList());
-        ProductResponse productResponse = new ProductResponse();
-        productResponse.setContent(productDTOS);
-        productResponse.setPageNumber(pageNumber);
-        productResponse.setPageSize(productPage.getSize());
-        productResponse.setTotalPages(productPage.getTotalPages());
-        productResponse.setTotalElement(productPage.getTotalElements());
-        productResponse.setLastPage(productPage.isLast());
+        ProductResponse productResponse = new ProductResponse(
+                productDTOS,
+                pageNumber,
+                productPage.getSize(),
+                productPage.getTotalElements(),
+                productPage.getTotalPages(),
+                productPage.isLast());
         return productResponse;
+    }
+
+    private ProductDTO toProductDTO(Product product) {
+        ProductDTO productDTO = modelMapper.map(product, ProductDTO.class);
+        if (product.getCategory() != null) {
+            productDTO.setCategoryId(product.getCategory().getCategoryId());
+        }
+        if (product.getUser() != null) {
+            productDTO.setSellerId(product.getUser().getUserId());
+            productDTO.setSellerName(product.getUser().getUsername());
+        }
+        return productDTO;
     }
 }

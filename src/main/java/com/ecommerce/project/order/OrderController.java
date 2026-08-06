@@ -25,6 +25,18 @@ public class OrderController {
     private final AuthUtil authUtil;
     private final OrderService orderService;
 
+    @GetMapping("/orders")
+    public ResponseEntity<OrderResponse> getMyOrders(
+            @RequestParam(name = "pageNumber", defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,
+            @RequestParam(name = "pageSize", defaultValue = AppConstants.PAGE_SIZE, required = false) Integer pageSize,
+            @RequestParam(name = "sortBy", defaultValue = AppConstants.SORT_ORDER_BY, required = false) String sortBy,
+            @RequestParam(name = "sortOrder", defaultValue = AppConstants.SORT_ORDER, required = false) String sortOrder
+    ) {
+        String emailId = authUtil.loggedInEmail();
+        OrderResponse orderResponse = orderService.getOrdersForUser(emailId, pageNumber, pageSize, sortBy, sortOrder);
+        return new ResponseEntity<>(orderResponse, HttpStatus.OK);
+    }
+
     @GetMapping("/orders/{orderId}")
     public ResponseEntity<OrderDTO> getOrder(@PathVariable Long orderId) {
         String emailId = authUtil.loggedInEmail();

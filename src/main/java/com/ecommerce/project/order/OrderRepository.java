@@ -10,10 +10,12 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
-    @Query("SELECT COALESCE( SUM(o.totalAmount), 0 ) FROM Order o")
-    Double getTotalRevenue();
+    @Query("SELECT COALESCE( SUM(o.amountMinorUnits), 0 ) FROM Order o")
+    Long getTotalRevenueMinorUnits();
 
     Optional<Order> findByOrderIdAndEmail(Long orderId, String email);
+
+    Page<Order> findByEmail(String email, Pageable pageable);
 
     // DISTINCT: an order can have multiple line items belonging to the same seller, which the
     // join would otherwise duplicate into repeated rows for the same order.

@@ -12,6 +12,7 @@ import com.ecommerce.project.util.AuthUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 
@@ -28,6 +29,9 @@ public class CartServiceImpl implements CartService {
     private final ProductRepository productRepository;
     private final CartItemRepository cartItemRepository;
     private final ModelMapper modelMapper;
+
+    @Value("${app.currency}")
+    private String currency;
 
     @Override
     public CartDTO addProductToCart(Long productId, Integer quantity) {
@@ -50,11 +54,12 @@ public class CartServiceImpl implements CartService {
         newCartItem.setQuantity(quantity);
         newCartItem.setCart(cart);
         newCartItem.setDiscount(product.getDiscount());
-        newCartItem.setProductPrice(product.getPrice());
+        newCartItem.setProductPriceMinorUnits(product.getPriceMinorUnits());
+        newCartItem.setCurrency(product.getCurrency());
 
         // Save CartItem
         cartItemRepository.save(newCartItem);
-        cart.setTotalPrice(cart.getTotalPrice() + (product.getSpecialPrice() * quantity));
+        cart.setTotalPriceMinorUnits(cart.getTotalPriceMinorUnits() + (product.getSpecialPriceMinorUnits() * quantity));
         cartRepository.save(cart);
 
         // return updated cart Info
@@ -109,7 +114,7 @@ public class CartServiceImpl implements CartService {
         CartItem updatedCartItem =  cartItemRepository.save(currCartItem);
         if(updatedCartItem.getQuantity() == 0) cartItemRepository.deleteById(updatedCartItem.getCartItemId());
 
-        cart.setTotalPrice(cart.getTotalPrice() + (product.getSpecialPrice() * quantity));
+        cart.setTotalPriceMinorUnits(cart.getTotalPriceMinorUnits() + (product.getSpecialPriceMinorUnits() * quantity));
         cartRepository.save(cart);
 
         // return updated cart Info
@@ -131,7 +136,7 @@ public class CartServiceImpl implements CartService {
         if(cartItem == null) {
             throw new ResourceNotFoundException("Product ", "productId", productId);
         }
-        cart.setTotalPrice(cart.getTotalPrice() - (cartItem.getProductPrice() * cartItem.getQuantity()));
+        cart.setTotalPriceMinorUnits(cart.getTotalPriceMinorUnits() - (cartItem.getProductPriceMinorUnits() * cartItem.getQuantity()));
         cartRepository.save(cart);
         cartItemRepository.deleteCartItemByProductIdAndCartId(cartId, productId);
         return "Product : " + cartItem.getProduct().getProductName() + " has been deleted";
@@ -147,7 +152,8 @@ public class CartServiceImpl implements CartService {
         Cart existingCart = cartRepository.findCartByEmail(emailId);
         if (existingCart == null) {
             existingCart = new Cart();
-            existingCart.setTotalPrice(0.00);
+            existingCart.setTotalPriceMinorUnits(0L);
+            existingCart.setCurrency(currency);
             existingCart.setUser(authUtil.loggedInUser());
             existingCart = cartRepository.save(existingCart);
         } else {
@@ -155,31 +161,32 @@ public class CartServiceImpl implements CartService {
             cartItemRepository.deleteAllByCartId(existingCart.getCartId());
         }
 
-        double totalPrice = 0.00;
+        long totalPriceMinorUnits = 0L;
 
         // Process each item in the request to add to the cart
         for (CartItemDTO cartItemDTO : cartItems) {
-            Long productId = cartItemDTO.getProductId();
-            Integer quantity = cartItemDTO.getQuantity();
+            Long productId = cartItemDTO.productId();
+            Integer quantity = cartItemDTO.quantity();
 
             // Find the product by ID
             Product product = productRepository.findById(productId)
                     .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
 
-            totalPrice += product.getSpecialPrice() * quantity;
+            totalPriceMinorUnits += product.getSpecialPriceMinorUnits() * quantity;
 
             // Create and save cart item
             CartItem cartItem = new CartItem();
             cartItem.setProduct(product);
             cartItem.setCart(existingCart);
             cartItem.setQuantity(quantity);
-            cartItem.setProductPrice(product.getSpecialPrice());
+            cartItem.setProductPriceMinorUnits(product.getSpecialPriceMinorUnits());
             cartItem.setDiscount(product.getDiscount());
+            cartItem.setCurrency(product.getCurrency());
             cartItemRepository.save(cartItem);
         }
 
         // Update the cart's total price and save
-        existingCart.setTotalPrice(totalPrice);
+        existingCart.setTotalPriceMinorUnits(totalPriceMinorUnits);
         cartRepository.save(existingCart);
         return "Cart created/updated with the new items successfully";
     }
@@ -189,7 +196,8 @@ public class CartServiceImpl implements CartService {
         if (userCart != null) return userCart;
         Cart cart = new Cart();
         cart.setUser(authUtil.loggedInUser());
-        cart.setTotalPrice(0.0);
+        cart.setTotalPriceMinorUnits(0L);
+        cart.setCurrency(currency);
         return cartRepository.save(cart);
     }
 

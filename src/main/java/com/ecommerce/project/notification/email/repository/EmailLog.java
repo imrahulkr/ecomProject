@@ -7,7 +7,7 @@ import com.ecommerce.project.notification.email.model.EmailType;
 import com.google.gson.Gson;
 import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "email_logs")
@@ -30,8 +30,20 @@ public class EmailLog {
     @Column(columnDefinition = "TEXT")
     private String metadataJson;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
-    private LocalDateTime sentAt;
+    private Instant createdAt;
+    private Instant updatedAt;
+    private Instant sentAt;
+
+    @PrePersist
+    void onCreate() {
+        this.createdAt = Instant.now();
+        this.updatedAt = this.createdAt;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = Instant.now();
+    }
 
     public static EmailLog from(EmailRequest request, EmailSendResult result){
         EmailLog emailLog = new EmailLog();
@@ -41,7 +53,7 @@ public class EmailLog {
         emailLog.providerMessageId = result.getProviderMessageId();
         emailLog.status = result.isSuccess() ? EmailStatus.SENT : EmailStatus.FAILED;
         emailLog.errorMessage = result.getErrorMessage();
-        emailLog.sentAt = result.isSuccess() ? LocalDateTime.now() : null;
+        emailLog.sentAt = result.isSuccess() ? Instant.now() : null;
         emailLog.metadataJson = new Gson().toJson(request.getMetadata());
         return emailLog;
     }
@@ -118,19 +130,27 @@ public class EmailLog {
         this.metadataJson = metadataJson;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 
-    public LocalDateTime getSentAt() {
+    public Instant getSentAt() {
         return sentAt;
     }
 
-    public void setSentAt(LocalDateTime sentAt) {
+    public void setSentAt(Instant sentAt) {
         this.sentAt = sentAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

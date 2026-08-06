@@ -16,7 +16,9 @@ import com.ecommerce.project.security.OAuthAccount;
 import com.ecommerce.project.product.Product;
 
 @Entity
-@Data
+@Getter
+@Setter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
 @Table(name = "users",  uniqueConstraints = {
         @UniqueConstraint(columnNames = "username"),
@@ -28,6 +30,7 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")
+    @EqualsAndHashCode.Include
     private Long userId;
 
     private String name;
@@ -55,8 +58,7 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    @Getter
-    @Setter
+    @ToString.Exclude
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OAuthAccount> oAuthAccounts = new ArrayList<>();
@@ -83,8 +85,6 @@ public class User {
         return password != null;
     }
 
-    @Setter
-    @Getter
     @ManyToMany(cascade = {CascadeType.PERSIST,  CascadeType.MERGE}, fetch = FetchType.EAGER)
     @JoinTable(name = "user_role", joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id"))
@@ -100,8 +100,7 @@ public class User {
                 orphanRemoval = true)
     private Set<Product> products;
 
-    @Setter
-    @Getter
+    @ToString.Exclude
     @OneToMany(mappedBy = "user", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, orphanRemoval = true)
 //    @JoinTable(name = "user_address", joinColumns = @JoinColumn(name = "user_id"),
 //                inverseJoinColumns = @JoinColumn(name = "address_id"))

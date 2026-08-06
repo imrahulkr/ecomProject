@@ -38,12 +38,12 @@ public class RazorpayPaymentProvider implements PaymentProvider {
             RazorpayClient client = new RazorpayClient(keyId, keySecret);
 
             JSONObject orderRequest = new JSONObject();
-            orderRequest.put("amount", request.getAmountMinorUnits());
-            orderRequest.put("currency", request.getCurrency());
-            orderRequest.put("receipt", request.getOrderReference());
+            orderRequest.put("amount", request.amountMinorUnits());
+            orderRequest.put("currency", request.currency());
+            orderRequest.put("receipt", request.orderReference());
             orderRequest.put("payment_capture", 1);
-            if (request.getMetadata() != null && !request.getMetadata().isEmpty()) {
-                orderRequest.put("notes", new JSONObject(request.getMetadata()));
+            if (request.metadata() != null && !request.metadata().isEmpty()) {
+                orderRequest.put("notes", new JSONObject(request.metadata()));
             }
 
             Order order = client.orders.create(orderRequest);
@@ -54,8 +54,8 @@ public class RazorpayPaymentProvider implements PaymentProvider {
             Map<String, Object> clientPayload = new LinkedHashMap<>();
             clientPayload.put("keyId", keyId);
             clientPayload.put("razorpayOrderId", orderId);
-            clientPayload.put("amount", request.getAmountMinorUnits());
-            clientPayload.put("currency", request.getCurrency());
+            clientPayload.put("amount", request.amountMinorUnits());
+            clientPayload.put("currency", request.currency());
 
             return PaymentIntentResult.builder()
                     .providerName(ProviderName.RAZORPAY)
@@ -74,12 +74,12 @@ public class RazorpayPaymentProvider implements PaymentProvider {
         try {
             RazorpayClient client = new RazorpayClient(keyId, keySecret);
             Refund refund;
-            if (request.getAmountMinorUnits() != null) {
+            if (request.amountMinorUnits() != null) {
                 JSONObject options = new JSONObject();
-                options.put("amount", request.getAmountMinorUnits());
-                refund = client.payments.refund(request.getProviderPaymentId(), options);
+                options.put("amount", request.amountMinorUnits());
+                refund = client.payments.refund(request.providerPaymentId(), options);
             } else {
-                refund = client.payments.refund(request.getProviderPaymentId());
+                refund = client.payments.refund(request.providerPaymentId());
             }
             String refundId = refund.get("id");
             String status = refund.get("status");

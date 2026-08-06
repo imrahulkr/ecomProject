@@ -49,7 +49,7 @@ public class SellerApplicationServiceImpl implements SellerApplicationService {
                 });
 
         SellerApplication application = new SellerApplication(
-                user, request.getBusinessName(), request.getBusinessDescription());
+                user, request.businessName(), request.businessDescription());
         application = sellerApplicationRepository.save(application);
         return toDTO(application);
     }

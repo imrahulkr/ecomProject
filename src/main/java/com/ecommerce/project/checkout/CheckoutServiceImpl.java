@@ -25,7 +25,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -50,12 +49,9 @@ public class CheckoutServiceImpl implements CheckoutService {
     // same precedent of instantiating its own rather than relying on injection.
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${app.currency}")
-    private String currency;
-
     @Override
     public CheckoutResponse checkout(Long userId, String userEmail, String idempotencyKey, CheckoutRequest request) {
-        String requestHash = IdempotencyService.hash(userId + "|" + request.getAddressId() + "|" + request.getProvider());
+        String requestHash = IdempotencyService.hash(userId + "|" + request.addressId() + "|" + request.provider());
         IdempotencyClaim claim = idempotencyService.begin(userId, idempotencyKey, IdempotencyEndpoint.CHECKOUT, requestHash);
         if (claim.isReplay()) {
             return readReplay(claim);
@@ -63,13 +59,13 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         OrderCreationResult created;
         try {
-            created = checkoutTransactionExecutor.createOrderWithReservation(userEmail, userId, request.getAddressId());
+            created = checkoutTransactionExecutor.createOrderWithReservation(userEmail, userId, request.addressId());
         } catch (RuntimeException e) {
             idempotencyService.fail(claim.getRecordId());
             throw e;
         }
 
-        ProviderName providerName = request.getProvider() != null ? request.getProvider() : pickHealthiestProvider();
+        ProviderName providerName = request.provider() != null ? request.provider() : pickHealthiestProvider();
 
         CheckoutResponse response = attemptPayment(created.order(), providerName);
         idempotencyService.complete(claim.getRecordId(), created.order().getOrderId(), writeJson(response));
@@ -78,7 +74,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
     @Override
     public CheckoutResponse retryPayment(Long userId, String userEmail, Long orderId, String idempotencyKey, RetryPaymentRequest request) {
-        String requestHash = IdempotencyService.hash(userId + "|" + orderId + "|" + request.getProvider());
+        String requestHash = IdempotencyService.hash(userId + "|" + orderId + "|" + request.provider());
         IdempotencyClaim claim = idempotencyService.begin(userId, idempotencyKey, IdempotencyEndpoint.RETRY_PAYMENT, requestHash);
         if (claim.isReplay()) {
             return readReplay(claim);
@@ -102,7 +98,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             throw e;
         }
 
-        CheckoutResponse response = attemptPayment(order, request.getProvider());
+        CheckoutResponse response = attemptPayment(order, request.provider());
         idempotencyService.complete(claim.getRecordId(), orderId, writeJson(response));
         return response;
     }
@@ -119,7 +115,8 @@ public class CheckoutServiceImpl implements CheckoutService {
     // provider, and a DB transaction should never sit open across external I/O.
     private CheckoutResponse attemptPayment(Order order, ProviderName providerName) {
         PaymentProvider provider = paymentProviderRegistry.get(providerName);
-        long amountMinorUnits = Math.round(order.getTotalAmount() * 100);
+        long amountMinorUnits = order.getAmountMinorUnits();
+        String currency = order.getCurrency();
 
         CreatePaymentIntentRequest intentRequest = CreatePaymentIntentRequest.builder()
                 .orderReference("ORDER-" + order.getOrderId())
@@ -135,7 +132,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         try {
             PaymentIntentResult result = provider.createPaymentIntent(intentRequest);
             providerHealthService.recordSuccess(providerName);
-            attempt.setProviderPaymentReference(result.getProviderReferenceId());
+            attempt.setProviderPaymentReference(result.providerReferenceId());
             paymentAttemptRepository.save(attempt);
 
             return CheckoutResponse.builder()
@@ -144,8 +141,8 @@ public class CheckoutServiceImpl implements CheckoutService {
                     .provider(providerName)
                     .amountMinorUnits(amountMinorUnits)
                     .currency(currency)
-                    .clientSecret(result.getClientSecret())
-                    .clientPayload(result.getClientPayload())
+                    .clientSecret(result.clientSecret())
+                    .clientPayload(result.clientPayload())
                     .paymentAttemptFailed(false)
                     .build();
         } catch (PaymentProviderException e) {

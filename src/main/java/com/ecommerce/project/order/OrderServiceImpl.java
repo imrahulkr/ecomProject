@@ -46,6 +46,29 @@ public class OrderServiceImpl implements OrderService {
         return modelMapper.map(order, OrderDTO.class);
     }
 
+    // Customer-scoped order history - findByEmail restricts the query itself rather than
+    // loading everything and filtering, matching the ownership-scoping pattern used for
+    // sellers/getAllSellerOrders below.
+    @Override
+    @Transactional
+    public OrderResponse getOrdersForUser(String emailId, Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
+        Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
+        Page<Order> orderpage = orderRepository.findByEmail(emailId, pageDetails);
+        List<Order> orders = orderpage.getContent();
+        List<OrderDTO> orderDTOS = orders.isEmpty() ? Collections.emptyList() : orders.stream()
+                .map(order -> modelMapper.map(order, OrderDTO.class))
+                .toList();
+        OrderResponse orderResponse = new OrderResponse(
+                orderDTOS,
+                orderpage.getNumber(),
+                orderpage.getSize(),
+                orderpage.getTotalElements(),
+                orderpage.getTotalPages(),
+                orderpage.isLast());
+        return orderResponse;
+    }
+
     @Override
     @Transactional
     public OrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
@@ -56,13 +79,13 @@ public class OrderServiceImpl implements OrderService {
         List<OrderDTO> orderDTOS = orders.isEmpty() ? Collections.emptyList() : orders.stream()
                 .map(order -> modelMapper.map(order, OrderDTO.class))
                 .toList();
-        OrderResponse orderResponse = new OrderResponse();
-        orderResponse.setContent(orderDTOS);
-        orderResponse.setPageNumber(orderpage.getNumber());
-        orderResponse.setPageSize(orderpage.getSize());
-        orderResponse.setTotalPages(orderpage.getTotalPages());
-        orderResponse.setTotalElement(orderpage.getTotalElements());
-        orderResponse.setLastPage(orderpage.isLast());
+        OrderResponse orderResponse = new OrderResponse(
+                orderDTOS,
+                orderpage.getNumber(),
+                orderpage.getSize(),
+                orderpage.getTotalElements(),
+                orderpage.getTotalPages(),
+                orderpage.isLast());
         return orderResponse;
     }
 
@@ -99,13 +122,13 @@ public class OrderServiceImpl implements OrderService {
         List<OrderDTO> orderDTOS = orders.isEmpty() ? Collections.emptyList() : orders.stream()
                 .map(order -> toSellerScopedOrderDTO(order, seller.getUserId()))
                 .toList();
-        OrderResponse orderResponse = new OrderResponse();
-        orderResponse.setContent(orderDTOS);
-        orderResponse.setPageNumber(orderpage.getNumber());
-        orderResponse.setPageSize(orderpage.getSize());
-        orderResponse.setTotalPages(orderpage.getTotalPages());
-        orderResponse.setTotalElement(orderpage.getTotalElements());
-        orderResponse.setLastPage(orderpage.isLast());
+        OrderResponse orderResponse = new OrderResponse(
+                orderDTOS,
+                orderpage.getNumber(),
+                orderpage.getSize(),
+                orderpage.getTotalElements(),
+                orderpage.getTotalPages(),
+                orderpage.isLast());
         return orderResponse;
     }
 
@@ -147,18 +170,18 @@ public class OrderServiceImpl implements OrderService {
         }
 
         FulfillmentStatus current = orderItem.getFulfillmentStatus();
-        FulfillmentStatus target = update.getStatus();
+        FulfillmentStatus target = update.status();
         if (target == null) {
             throw new APIException("status is required");
         }
 
         if (current == FulfillmentStatus.PENDING && target == FulfillmentStatus.SHIPPED) {
-            if (update.getTrackingNumber() == null || update.getTrackingNumber().isBlank()
-                    || update.getCarrier() == null || update.getCarrier().isBlank()) {
+            if (update.trackingNumber() == null || update.trackingNumber().isBlank()
+                    || update.carrier() == null || update.carrier().isBlank()) {
                 throw new APIException("trackingNumber and carrier are required to mark an item as shipped");
             }
-            orderItem.setTrackingNumber(update.getTrackingNumber());
-            orderItem.setCarrier(update.getCarrier());
+            orderItem.setTrackingNumber(update.trackingNumber());
+            orderItem.setCarrier(update.carrier());
             orderItem.setShippedAt(LocalDateTime.now());
             orderItem.setFulfillmentStatus(FulfillmentStatus.SHIPPED);
             OrderItem saved = orderItemRepository.save(orderItem);

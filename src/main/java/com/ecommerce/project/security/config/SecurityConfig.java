@@ -4,6 +4,7 @@ import com.ecommerce.project.security.handler.OAuth2LoginFailureHandler;
 import com.ecommerce.project.security.handler.OAuth2LoginSuccessHandler;
 import com.ecommerce.project.security.jwt.AuthEntryPointJwt;
 import com.ecommerce.project.security.jwt.AuthTokenFilter;
+import com.ecommerce.project.security.jwt.RestAccessDeniedHandler;
 import com.ecommerce.project.security.services.UserDetailsServiceImpl;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,18 +32,21 @@ public class SecurityConfig {
     private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
     private final AuthEntryPointJwt authEntryPointJwt; // JwtAuthenticationEntryPoint
     private final AuthTokenFilter authTokenFilter; // JwtAuthenticationFilter
+    private final RestAccessDeniedHandler restAccessDeniedHandler;
     private final CorsConfigurationSource corsConfigurationSource;
     private final UserDetailsServiceImpl userDetailsService;
 
     public SecurityConfig(OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler,
                           OAuth2LoginFailureHandler oAuth2LoginFailureHandler,
                           AuthEntryPointJwt authEntryPointJwt, AuthTokenFilter authTokenFilter,
+                          RestAccessDeniedHandler restAccessDeniedHandler,
                           CorsConfigurationSource corsConfigurationSource,
                           UserDetailsServiceImpl userDetailsService) {
         this.oAuth2LoginSuccessHandler = oAuth2LoginSuccessHandler;
         this.oAuth2LoginFailureHandler = oAuth2LoginFailureHandler;
         this.authEntryPointJwt = authEntryPointJwt;
         this.authTokenFilter = authTokenFilter;
+        this.restAccessDeniedHandler = restAccessDeniedHandler;
         this.corsConfigurationSource = corsConfigurationSource;
         this.userDetailsService = userDetailsService;
     }
@@ -70,7 +74,9 @@ public class SecurityConfig {
                         .successHandler(oAuth2LoginSuccessHandler)
                         .failureHandler(oAuth2LoginFailureHandler)
                 )
-                .exceptionHandling(ex -> ex.authenticationEntryPoint(authEntryPointJwt))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authEntryPointJwt)
+                        .accessDeniedHandler(restAccessDeniedHandler))
                 .addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

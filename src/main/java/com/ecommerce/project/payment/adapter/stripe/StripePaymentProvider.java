@@ -40,18 +40,18 @@ public class StripePaymentProvider implements PaymentProvider {
             Customer customer = findOrCreateCustomer(client, request);
 
             PaymentIntentCreateParams.Builder paramsBuilder = PaymentIntentCreateParams.builder()
-                    .setAmount(request.getAmountMinorUnits())
-                    .setCurrency(request.getCurrency().toLowerCase())
+                    .setAmount(request.amountMinorUnits())
+                    .setCurrency(request.currency().toLowerCase())
                     .setCustomer(customer.getId())
-                    .setDescription(request.getDescription())
+                    .setDescription(request.description())
                     .setAutomaticPaymentMethods(
                             PaymentIntentCreateParams.AutomaticPaymentMethods.builder().setEnabled(true).build());
 
-            if (request.getOrderReference() != null) {
-                paramsBuilder.putMetadata("orderReference", request.getOrderReference());
+            if (request.orderReference() != null) {
+                paramsBuilder.putMetadata("orderReference", request.orderReference());
             }
-            if (request.getMetadata() != null) {
-                for (Map.Entry<String, String> entry : request.getMetadata().entrySet()) {
+            if (request.metadata() != null) {
+                for (Map.Entry<String, String> entry : request.metadata().entrySet()) {
                     paramsBuilder.putMetadata(entry.getKey(), entry.getValue());
                 }
             }
@@ -75,9 +75,9 @@ public class StripePaymentProvider implements PaymentProvider {
         try {
             StripeClient client = new StripeClient(stripeApiKey);
             RefundCreateParams.Builder paramsBuilder = RefundCreateParams.builder()
-                    .setPaymentIntent(request.getProviderPaymentId());
-            if (request.getAmountMinorUnits() != null) {
-                paramsBuilder.setAmount(request.getAmountMinorUnits());
+                    .setPaymentIntent(request.providerPaymentId());
+            if (request.amountMinorUnits() != null) {
+                paramsBuilder.setAmount(request.amountMinorUnits());
             }
             Refund refund = client.v1().refunds().create(paramsBuilder.build());
             return RefundResult.builder()
@@ -93,15 +93,15 @@ public class StripePaymentProvider implements PaymentProvider {
 
     private Customer findOrCreateCustomer(StripeClient client, CreatePaymentIntentRequest request) throws StripeException {
         CustomerSearchParams searchParams = CustomerSearchParams.builder()
-                .setQuery("email:'" + request.getCustomerEmail() + "'")
+                .setQuery("email:'" + request.customerEmail() + "'")
                 .build();
         StripeSearchResult<Customer> result = client.v1().customers().search(searchParams);
         if (!result.getData().isEmpty()) {
             return result.getData().getFirst();
         }
         CustomerCreateParams createParams = CustomerCreateParams.builder()
-                .setName(request.getCustomerName())
-                .setEmail(request.getCustomerEmail())
+                .setName(request.customerName())
+                .setEmail(request.customerEmail())
                 .build();
         return client.v1().customers().create(createParams);
     }

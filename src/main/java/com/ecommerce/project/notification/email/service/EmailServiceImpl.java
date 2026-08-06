@@ -112,7 +112,7 @@ public class EmailServiceImpl implements EmailService {
                 "orderDate", order.getOrderDate() != null
                         ? order.getOrderDate().format(DateTimeFormatter.ofPattern("dd MMMM yyyy")) : "",
                 "paymentMethod", paymentMethod,
-                "totalAmount", String.format("%.2f", order.getTotalAmount()),
+                "totalAmount", String.format("%.2f", order.getAmountMinorUnits() / 100.0),
                 "trackingUrl", frontendUrl + "/orders/" + order.getOrderId()
         );
 
