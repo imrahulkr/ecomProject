@@ -80,6 +80,7 @@ public class SecureAuthServiceImpl implements SecureAuthService{
                                 .orElseThrow(() -> new RuntimeException("Error : Role is not Found !!!!!! "));
 
         User user = User.builder()
+                .username(request.username())
                 .email(request.email())
                 .name(request.name())
                 .password(passwordEncoder.encode(request.password()))

@@ -13,6 +13,14 @@ import com.ecommerce.project.security.RefreshTokenRepository;
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
+    // Atomic conditional revoke -- affected-rows == 0 means a concurrent request already revoked
+    // this exact token between the caller's SELECT and this UPDATE (same pattern as
+    // ProductRepository.decrementStockIfAvailable: never read-then-write for a state transition
+    // that must be exclusive).
+    @Modifying
+    @Query("UPDATE RefreshToken r SET r.revoked = true WHERE r.id = :id AND r.revoked = false")
+    int revokeIfActive(@Param("id") Long id);
+
     @Modifying
     @Query("UPDATE RefreshToken r SET r.revoked = true WHERE r.familyId = :familyId")
     void revokeAllByFamilyId(@Param("familyId") UUID familyId);

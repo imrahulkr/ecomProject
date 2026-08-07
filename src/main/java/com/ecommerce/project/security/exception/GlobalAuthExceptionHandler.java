@@ -1,5 +1,7 @@
 package com.ecommerce.project.security.exception;
 
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -9,7 +11,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.Instant;
 import java.util.Map;
 
+// @Order ensures these specific mappings are checked before MyGlobalExceptionHandler's
+// catch-all Exception.class handler -- without an explicit order, both advice beans tie at
+// Ordered.LOWEST_PRECEDENCE and Spring picks whichever bean it finds first per-exception rather
+// than the most specific match across beans, so the catch-all could swallow these before they
+// ever reached their intended 4xx mapping here.
 @RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class GlobalAuthExceptionHandler {
 
     @ExceptionHandler(EmailAlreadyRegisteredException.class)

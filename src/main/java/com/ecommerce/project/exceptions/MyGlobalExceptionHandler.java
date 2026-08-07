@@ -5,6 +5,8 @@ import com.ecommerce.project.payload.APIResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -21,7 +23,11 @@ import java.util.Map;
 // path[/errors]) - see APIResponse's javadoc. AuthEntryPointJwt (401) and RestAccessDeniedHandler
 // (403) build the identical shape outside this advice, since Spring Security's filter chain runs
 // before @RestControllerAdvice ever gets a chance to handle those.
+// @Order(LOWEST_PRECEDENCE) so its Exception.class catch-all is always checked after every other
+// @RestControllerAdvice (e.g. GlobalAuthExceptionHandler) -- otherwise unordered advice beans tie
+// and Spring may pick this one first per-exception, swallowing more specific 4xx mappings as 500s.
 @RestControllerAdvice
+@Order(Ordered.LOWEST_PRECEDENCE)
 public class MyGlobalExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(MyGlobalExceptionHandler.class);
 

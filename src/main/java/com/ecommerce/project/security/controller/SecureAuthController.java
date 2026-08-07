@@ -12,6 +12,7 @@ import com.ecommerce.project.security.services.SecureAuthServiceImpl;
 import com.ecommerce.project.auth.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +33,9 @@ public class SecureAuthController {
     private final RefreshTokenService refreshTokenService;
     private final JwtUtils jwtUtils;
     private final OneTimeExchangeCodeStore exchangeCodeStore;
+
+    @Value("${app.cookie.secure:true}")
+    private boolean cookieSecure;
 
     public SecureAuthController(SecureAuthService secureAuthService, RefreshTokenService refreshTokenService, JwtUtils jwtUtils, OneTimeExchangeCodeStore store) {
         this.secureAuthService = secureAuthService;
@@ -74,9 +78,8 @@ public class SecureAuthController {
         String rawRefreshToken = extractRefreshCookie(request);
         var rotation = refreshTokenService.rotate(rawRefreshToken);
 
-        String newAccessToken = jwtUtils.generateAccessToken(rotation.user());
         AuthResponse body = secureAuthService.toAuthResponse(
-                new SecureAuthServiceImpl.IssuedTokens(newAccessToken, rotation.newRawRefreshToken(), rotation.user())
+                new SecureAuthServiceImpl.IssuedTokens(rotation.newAccessToken(), rotation.newRawRefreshToken(), rotation.user())
         );
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, buildRefreshCookie(rotation.newRawRefreshToken()).toString())
                 .body(body);
@@ -94,8 +97,8 @@ public class SecureAuthController {
 
         ResponseCookie clearCookie = ResponseCookie.from(REFRESH_COOKIE_NAME,"")
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("None")
+                .secure(cookieSecure)
+                .sameSite(cookieSecure ? "None" : "Lax")
                 .maxAge(0)
                 .build();
 
@@ -113,13 +116,14 @@ public class SecureAuthController {
 
 
     private ResponseCookie buildRefreshCookie(String rawRefreshToken) {
-        // SameSite=None + Secure required since the react frontend is a separate origin
-        // -- Strict/Lax cookies are silently dropped on cross-origin calls.
-
+        // SameSite=None + Secure in prod, since the deployed frontend is a separate origin/site.
+        // Browsers reject SameSite=None without Secure, so local http dev (app.cookie.secure=false)
+        // falls back to Lax -- frontend and backend are same-site (both "localhost", different port
+        // only), so Lax still sends the cookie on our cross-origin XHR calls.
         return ResponseCookie.from(REFRESH_COOKIE_NAME, rawRefreshToken)
                 .httpOnly(true)
-                .secure(true) // requires HTTPS -- use false only in local http dev
-                .sameSite("None")
+                .secure(cookieSecure)
+                .sameSite(cookieSecure ? "None" : "Lax")
                 .path(REFRESH_COOKIE_PATH)
                 .maxAge(java.time.Duration.ofDays(jwtUtils.getRefreshTokenTtlDays()))
                 .build();

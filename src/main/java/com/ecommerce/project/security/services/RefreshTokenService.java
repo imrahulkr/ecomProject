@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
@@ -19,6 +20,11 @@ import java.util.UUID;
 
 @Service
 public class RefreshTokenService {
+
+    // A reused token revoked more recently than this is treated as a legitimate concurrent
+    // duplicate (e.g. React StrictMode double-invoking an effect, or two browser tabs racing
+    // a silent refresh) rather than theft -- see rotate() below.
+    private static final Duration REUSE_GRACE_WINDOW = Duration.ofSeconds(10);
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtUtils jwtUtils;
@@ -48,7 +54,16 @@ public class RefreshTokenService {
                 .orElseThrow(() -> new InvalidRefreshTokenException("RefreshToken not recognized"));
 
         if(existing.isRevoked()){
-            // Reuse of an already/revoked token - treat as compromise.
+            boolean withinGraceWindow = existing.getUpdatedAt() != null
+                    && existing.getUpdatedAt().isAfter(Instant.now().minus(REUSE_GRACE_WINDOW));
+            if (withinGraceWindow) {
+                // Almost certainly a duplicate of the request that already rotated this token,
+                // not a replayed/stolen one -- reject just this request and leave the chain
+                // (including whichever token the winning request just issued) intact.
+                throw new InvalidRefreshTokenException(
+                        "Refresh already in progress from another request. Please retry.");
+            }
+            // Reuse of a token revoked well outside the grace window - treat as compromise.
             refreshTokenRepository.revokeAllByFamilyId(existing.getFamilyId());
             throw new InvalidRefreshTokenException("Refresh token reuse detected - " +
                     "all sessions in this chain has been revoked. Please log in again.");
@@ -58,11 +73,28 @@ public class RefreshTokenService {
             throw new InvalidRefreshTokenException("Refresh token expired");
         }
 
-        existing.setRevoked(true);
-        refreshTokenRepository.save(existing);
+        // Atomic conditional revoke -- 0 affected rows means a concurrent request revoked this
+        // exact token in the window between our SELECT above and this UPDATE. That's always a
+        // benign near-simultaneous duplicate, never a genuine stale replay (a truly stale token
+        // would already have shown revoked=true above and been caught by the grace-window check),
+        // so reject just this caller rather than treating it as theft.
+        int updated = refreshTokenRepository.revokeIfActive(existing.getId());
+        if (updated == 0) {
+            throw new InvalidRefreshTokenException(
+                    "Refresh already in progress from another request. Please retry.");
+        }
 
         String newRawToken = issueToken(existing.getUser(), existing.getFamilyId());
-        return new RotationResult(existing.getUser(), newRawToken);
+
+        // Generate the access token here, still inside the open session -- User.oAuthAccounts
+        // is a lazy @OneToMany, and with spring.jpa.open-in-view=false the session closes the
+        // moment this method returns. Touching that lazy collection here (via
+        // generateAccessToken -> user.getOAuthAccounts()) initializes it while it's still safe
+        // to do so, so later reads of the same User instance (e.g. SecureAuthServiceImpl
+        // .toAuthResponse, called after this transaction has committed) don't hit
+        // LazyInitializationException.
+        String newAccessToken = jwtUtils.generateAccessToken(existing.getUser());
+        return new RotationResult(existing.getUser(), newRawToken, newAccessToken);
     }
 
 
@@ -104,5 +136,5 @@ public class RefreshTokenService {
         }
     }
 
-    public record RotationResult(User user, String newRawRefreshToken) {}
+    public record RotationResult(User user, String newRawRefreshToken, String newAccessToken) {}
 }

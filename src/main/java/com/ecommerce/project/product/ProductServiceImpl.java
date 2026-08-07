@@ -106,6 +106,15 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    public ProductDTO getProductById(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
+        ProductDTO productDTO = toProductDTO(product);
+        productDTO.setImage(constructImageUrl(product.getImage()));
+        return productDTO;
+    }
+
+    @Override
     @Transactional
     public ProductDTO updateProduct(Long productId, ProductDTO productDTO) {
         Product existingProduct = productRepository.findById(productId).orElseThrow(()-> new ResourceNotFoundException("Product", "productId", productId));
