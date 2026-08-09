@@ -49,7 +49,7 @@ public class EmailServiceImpl implements EmailService {
     public void sendVerificationEmail(User user, String token) {
         Map<String, Object> vars = Map.of(
                 "name", user.getUsername(),
-                "verificationUrl",  baseUrl +"/api/auth/verify?token=" + token
+                "verificationUrl",  frontendUrl +"/verify-email?token=" + token
         );
         logger.debug("Sending verification email to name={}, url={}", vars.get("name"), vars.get("verificationUrl"));
         EmailRequest request = EmailRequest.builder()
@@ -68,7 +68,7 @@ public class EmailServiceImpl implements EmailService {
     public void sendPasswordResetEmail(User user, String token) {
         Map<String, Object> vars = Map.of(
                 "name", user.getUsername(),
-                "verificationUrl",  baseUrl +"/reset-password?token=" + token
+                "verificationUrl",  frontendUrl +"/reset-password?token=" + token
         );
 
         EmailRequest request = EmailRequest.builder()

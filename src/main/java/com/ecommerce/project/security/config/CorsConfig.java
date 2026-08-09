@@ -19,7 +19,7 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
         corsConfiguration.setAllowedOrigins(allowedOrigins);
-        corsConfiguration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        corsConfiguration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
         corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         corsConfiguration.setExposedHeaders(List.of("Authorization", "Content-Type"));
         corsConfiguration.setAllowCredentials(true); // required so the refresh-token cookie is sent/ received

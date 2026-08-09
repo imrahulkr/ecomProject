@@ -43,7 +43,11 @@ public class AccountLinkController {
         User user = userRepository.findById(principal.userId())
                 .orElseThrow(() -> new AccessDeniedException("User not found"));
 
-        List<String> providers = user.getOAuthAccounts().stream().map(OAuthAccount::getProvider).toList();
+        // user.getOAuthAccounts() is a lazy @OneToMany and this controller has no open Hibernate
+        // session (open-in-view=false, no @Transactional) - query the repository directly
+        // instead of navigating the lazy collection, same fix as AddressServiceImpl.getUserAddresses.
+        List<String> providers = oAuthAccountRepository.findByUser(user).stream()
+                .map(OAuthAccount::getProvider).toList();
 
         return ResponseEntity.ok(Map.of(
                 "hasPassword", user.hasPassword(),
@@ -63,7 +67,8 @@ public class AccountLinkController {
         User user = userRepository.findById(principal.userId())
                 .orElseThrow(() -> new AccessDeniedException("User not found"));
 
-        boolean wouldHaveNoLoginMethodLeft = !user.hasPassword() && user.getOAuthAccounts().size() <= 1;
+        boolean wouldHaveNoLoginMethodLeft = !user.hasPassword()
+                && oAuthAccountRepository.findByUser(user).size() <= 1;
 
         if(wouldHaveNoLoginMethodLeft) {
             throw new IllegalStateException("Cannot unlink your only sign-in method. Set a password first, or link another provider.");

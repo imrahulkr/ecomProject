@@ -1,13 +1,22 @@
-import { Link, useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useAddToCart } from '@/features/cart/hooks'
 import { formatMoney } from '@/lib/money'
 import { useProduct } from '@/features/product/hooks'
+import { useAuthStore } from '@/features/auth/store'
 
 export function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>()
   const { data: product, isPending, isError } = useProduct(productId)
+  const [quantity, setQuantity] = useState(1)
+  const addToCart = useAddToCart()
+  const accessToken = useAuthStore((s) => s.accessToken)
+  const navigate = useNavigate()
+  const location = useLocation()
 
   if (isPending) {
     return (
@@ -34,6 +43,15 @@ export function ProductDetailPage() {
   }
 
   const hasDiscount = (product.discount ?? 0) > 0
+  const inStock = (product.quantity ?? 0) > 0
+
+  function handleAddToCart() {
+    if (!accessToken) {
+      navigate('/login', { state: { from: location } })
+      return
+    }
+    addToCart.mutate({ productId: product!.productId!, quantity })
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,12 +93,41 @@ export function ProductDetailPage() {
             )}
           </div>
 
-          <Badge variant={product.quantity && product.quantity > 0 ? 'outline' : 'destructive'} className="w-fit">
-            {product.quantity && product.quantity > 0 ? `${product.quantity} in stock` : 'Out of stock'}
+          <Badge variant={inStock ? 'outline' : 'destructive'} className="w-fit">
+            {inStock ? `${product.quantity} in stock` : 'Out of stock'}
           </Badge>
 
           {product.description && (
             <p className="text-sm text-muted-foreground">{product.description}</p>
+          )}
+
+          {inStock && (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Decrease quantity"
+                  disabled={quantity <= 1}
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                >
+                  −
+                </Button>
+                <span className="w-6 text-center text-sm">{quantity}</span>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Increase quantity"
+                  disabled={quantity >= (product.quantity ?? 1)}
+                  onClick={() => setQuantity((q) => Math.min(product.quantity ?? 1, q + 1))}
+                >
+                  +
+                </Button>
+              </div>
+              <Button onClick={handleAddToCart} disabled={addToCart.isPending}>
+                {addToCart.isPending ? 'Adding…' : 'Add to cart'}
+              </Button>
+            </div>
           )}
         </div>
       </div>

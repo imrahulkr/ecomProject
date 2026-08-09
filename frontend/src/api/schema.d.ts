@@ -955,15 +955,15 @@ export interface components {
         ProductDTO: {
             /** Format: int64 */
             productId?: number;
-            productName?: string;
+            productName: string;
             description?: string;
             image?: string;
             /** Format: int32 */
-            quantity?: number;
+            quantity: number;
             /** Format: int64 */
-            priceMinorUnits?: number;
+            priceMinorUnits: number;
             /** Format: double */
-            discount?: number;
+            discount: number;
             /** Format: int64 */
             specialPriceMinorUnits?: number;
             currency?: string;
@@ -1089,12 +1089,12 @@ export interface components {
         AddressDTO: {
             /** Format: int64 */
             addressId?: number;
-            street?: string;
-            buildingName?: string;
-            city?: string;
-            state?: string;
-            country?: string;
-            pincode?: string;
+            street: string;
+            buildingName: string;
+            city: string;
+            state: string;
+            country: string;
+            pincode: string;
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */

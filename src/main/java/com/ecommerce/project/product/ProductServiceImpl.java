@@ -118,12 +118,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional
     public ProductDTO updateProduct(Long productId, ProductDTO productDTO) {
         Product existingProduct = productRepository.findById(productId).orElseThrow(()-> new ResourceNotFoundException("Product", "productId", productId));
-        Product product = modelMapper.map(productDTO, Product.class);
-        existingProduct.setSpecialPriceMinorUnits(product.getSpecialPriceMinorUnits());
-        existingProduct.setPriceMinorUnits(product.getPriceMinorUnits());
-        existingProduct.setCategory(product.getCategory());
-        existingProduct.setProductName(product.getProductName());
-        existingProduct.setDescription(product.getDescription());
+        applyProductEdits(existingProduct, productDTO);
         Product updatedProduct = productRepository.save(existingProduct);
         return toProductDTO(updatedProduct);
     }
@@ -149,6 +144,24 @@ public class ProductServiceImpl implements ProductService {
         // Save the updated product
         Product updateProduct = productRepository.save(existingProduct);
         return toProductDTO(updateProduct);
+    }
+
+    // Shared by updateProduct/updateProductAsSeller. Category is looked up explicitly by id rather
+    // than trusting modelMapper.map(productDTO, Product.class) to populate the Category association
+    // from a bare categoryId - ModelMapper's implicit nested-property matching for a non-DTO-shaped
+    // association isn't reliable and previously left existingProduct.category silently unset.
+    // specialPriceMinorUnits is likewise never taken from the client - it's recomputed here the same
+    // way addProduct computes it, so a price/discount edit can't drift the two apart.
+    private void applyProductEdits(Product existingProduct, ProductDTO productDTO) {
+        Category category = categoryRepository.findById(productDTO.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", productDTO.getCategoryId()));
+        existingProduct.setPriceMinorUnits(productDTO.getPriceMinorUnits());
+        existingProduct.setDiscount(productDTO.getDiscount());
+        existingProduct.setSpecialPriceMinorUnits(Math.round(productDTO.getPriceMinorUnits() - (productDTO.getDiscount() * productDTO.getPriceMinorUnits()) / 100));
+        existingProduct.setQuantity(productDTO.getQuantity());
+        existingProduct.setCategory(category);
+        existingProduct.setProductName(productDTO.getProductName());
+        existingProduct.setDescription(productDTO.getDescription());
     }
 
     private String constructImageUrl(String imageName) {
@@ -188,12 +201,7 @@ public class ProductServiceImpl implements ProductService {
     public ProductDTO updateProductAsSeller(Long sellerId, Long productId, ProductDTO productDTO) {
         Product existingProduct = productRepository.findByProductIdAndUser_UserId(productId, sellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
-        Product product = modelMapper.map(productDTO, Product.class);
-        existingProduct.setSpecialPriceMinorUnits(product.getSpecialPriceMinorUnits());
-        existingProduct.setPriceMinorUnits(product.getPriceMinorUnits());
-        existingProduct.setCategory(product.getCategory());
-        existingProduct.setProductName(product.getProductName());
-        existingProduct.setDescription(product.getDescription());
+        applyProductEdits(existingProduct, productDTO);
         Product updatedProduct = productRepository.save(existingProduct);
         return toProductDTO(updatedProduct);
     }

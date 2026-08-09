@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { login } from '@/features/auth/api'
 import { useAuthStore } from '@/features/auth/store'
+import { getErrorMessage } from '@/lib/errors'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -26,10 +27,7 @@ export function LoginPage() {
         navigate(from, { replace: true })
       }
     } catch (err) {
-      const message =
-        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
-        'Login failed'
-      toast.error(message)
+      toast.error(getErrorMessage(err, 'Login failed'))
     } finally {
       setIsSubmitting(false)
     }
@@ -66,9 +64,22 @@ export function LoginPage() {
           autoComplete="current-password"
           required
         />
+        <Link
+          to="/forgot-password"
+          className="self-end text-sm text-muted-foreground underline-offset-4 hover:underline"
+        >
+          Forgot password?
+        </Link>
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Logging in…' : 'Log in'}
         </Button>
+
+        <p className="text-center text-sm text-muted-foreground">
+          Don&apos;t have an account?{' '}
+          <Link to="/signup" className="font-medium text-foreground underline-offset-4 hover:underline">
+            Sign up
+          </Link>
+        </p>
       </form>
     </div>
   )

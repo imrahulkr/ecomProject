@@ -34,6 +34,7 @@ public class CartServiceImpl implements CartService {
     private String currency;
 
     @Override
+    @Transactional
     public CartDTO addProductToCart(Long productId, Integer quantity) {
         // Find Existing Cart or Create new for the logged in user
         Cart cart = createCart();
@@ -75,6 +76,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
+    @Transactional
     public CartDTO getCart(String emailId, Long cartId) {
         Cart cart = cartRepository.findCartByEmailAndCartId(emailId, cartId);
         if(cart == null) {
@@ -130,6 +132,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
+    @Transactional
     public String deleteProductFromCart(Long cartId, Long productId) {
         Cart cart = cartRepository.findById(cartId).orElseThrow(() -> new ResourceNotFoundException("Cart ", "cartId", cartId));
         CartItem cartItem = cartItemRepository.findCartItemByProductIdAndCartId(cartId, productId);
@@ -201,6 +204,7 @@ public class CartServiceImpl implements CartService {
         return cartRepository.save(cart);
     }
 
+    @Transactional
     public List<CartDTO> getAllCarts() {
         List<Cart> carts = cartRepository.findAll();
         if (carts.isEmpty()) return Collections.emptyList();

@@ -57,6 +57,14 @@ public class MyGlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, "IDEMPOTENCY_CONFLICT", e.getMessage(), request, null);
     }
 
+    // Thrown by AccountLinkController.deleteLinkedAccount when unlinking would leave the user
+    // with no way to log in (no password, no other linked provider) - a state conflict, not a
+    // malformed request.
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<APIResponse> myIllegalStateException(IllegalStateException e, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, "CONFLICT", e.getMessage(), request, null);
+    }
+
     @ExceptionHandler(APIException.class)
     public ResponseEntity<APIResponse> myAPIException(APIException e, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, "BAD_REQUEST", e.getMessage(), request, null);

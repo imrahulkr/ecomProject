@@ -4,6 +4,7 @@ import com.ecommerce.project.config.AppConstants;
 import com.ecommerce.project.product.dto.ProductDTO;
 import com.ecommerce.project.product.dto.ProductResponse;
 import com.ecommerce.project.util.AuthUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +21,7 @@ public class ProductController {
     private final AuthUtil authUtil;
 
     @PostMapping("/admin/categories/{categoryId}/product")
-    public ResponseEntity<ProductDTO> addProduct(@RequestBody ProductDTO productDTO, @PathVariable Long categoryId) {
+    public ResponseEntity<ProductDTO> addProduct(@Valid @RequestBody ProductDTO productDTO, @PathVariable Long categoryId) {
         ProductDTO savedProductDTO = productService.addProduct(categoryId, productDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedProductDTO);
     }
@@ -66,7 +67,7 @@ public class ProductController {
     }
 
     @PutMapping("/admin/product/{productId}")
-    public ResponseEntity<ProductDTO> updateProduct(@RequestBody ProductDTO productDTO, @PathVariable Long productId) {
+    public ResponseEntity<ProductDTO> updateProduct(@Valid @RequestBody ProductDTO productDTO, @PathVariable Long productId) {
         ProductDTO updatedProductDTO = productService.updateProduct(productId, productDTO);
         return ResponseEntity.status(HttpStatus.OK).body(updatedProductDTO);
     }
@@ -109,13 +110,13 @@ public class ProductController {
     // (it already assigns ownership from the caller); update/delete/image go through the
     // ownership-scoped service methods so a seller can't touch another seller's product at all.
     @PostMapping("/seller/categories/{categoryId}/products")
-    public ResponseEntity<ProductDTO> addProductAsSeller(@RequestBody ProductDTO productDTO, @PathVariable Long categoryId) {
+    public ResponseEntity<ProductDTO> addProductAsSeller(@Valid @RequestBody ProductDTO productDTO, @PathVariable Long categoryId) {
         ProductDTO savedProductDTO = productService.addProduct(categoryId, productDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedProductDTO);
     }
 
     @PutMapping("/seller/products/{productId}")
-    public ResponseEntity<ProductDTO> updateProductAsSeller(@RequestBody ProductDTO productDTO, @PathVariable Long productId) {
+    public ResponseEntity<ProductDTO> updateProductAsSeller(@Valid @RequestBody ProductDTO productDTO, @PathVariable Long productId) {
         ProductDTO updatedProductDTO = productService.updateProductAsSeller(authUtil.loggedInUserId(), productId, productDTO);
         return ResponseEntity.status(HttpStatus.OK).body(updatedProductDTO);
     }

@@ -31,7 +31,7 @@ export function ProductCard({ product }: { product: ProductDTO }) {
             </Badge>
           )}
         </CardContent>
-        <CardFooter className="flex items-baseline gap-2">
+        <CardFooter className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="font-semibold">
             {formatMoney(product.specialPriceMinorUnits ?? 0, product.currency ?? 'INR')}
           </span>
