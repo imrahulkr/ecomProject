@@ -28,7 +28,8 @@ public class AddressController {
     }
     @GetMapping("/addresses")
     public ResponseEntity<List<AddressDTO>> getAddresses(){
-        List<AddressDTO> addressDTOs = addressService.getAddresses();
+        User loggedInUser = authUtil.loggedInUser();
+        List<AddressDTO> addressDTOs = addressService.getAddresses(loggedInUser);
         return new ResponseEntity<>(addressDTOs, HttpStatus.OK);
     }
 
@@ -41,19 +42,22 @@ public class AddressController {
 
     @GetMapping("/addresses/{addressId}")
     public ResponseEntity<AddressDTO> getAddressById(@PathVariable("addressId") Long addressId){
-        AddressDTO address = addressService.getAddressById(addressId);
+        User loggedInUser = authUtil.loggedInUser();
+        AddressDTO address = addressService.getAddressById(loggedInUser, addressId);
         return new ResponseEntity<>(address, HttpStatus.OK);
     }
 
     @PutMapping("addresses/{addressId}")
     public ResponseEntity<AddressDTO> updateAddress(@PathVariable("addressId") Long addressId, @Valid @RequestBody AddressDTO addressDTO){
-        AddressDTO updatedAddressDTO = addressService.updateAddress(addressId, addressDTO);
+        User loggedInUser = authUtil.loggedInUser();
+        AddressDTO updatedAddressDTO = addressService.updateAddress(loggedInUser, addressId, addressDTO);
         return new ResponseEntity<>(updatedAddressDTO,  HttpStatus.OK);
     }
 
     @DeleteMapping("addresses/{addressId}")
     public ResponseEntity<String> deleteAddress(@PathVariable("addressId") Long addressId){
-        String message = addressService.deleteAddress(addressId);
+        User loggedInUser = authUtil.loggedInUser();
+        String message = addressService.deleteAddress(loggedInUser, addressId);
         return new ResponseEntity<>(message,  HttpStatus.OK);
     }
 }

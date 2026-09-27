@@ -2,6 +2,7 @@ package com.ecommerce.project.order;
 
 import com.ecommerce.project.exceptions.APIException;
 import com.ecommerce.project.exceptions.ResourceNotFoundException;
+import com.ecommerce.project.inventory.InventoryService;
 import com.ecommerce.project.notification.email.event.OnItemDeliveredEvent;
 import com.ecommerce.project.notification.email.event.OnItemShippedEvent;
 import com.ecommerce.project.util.AuthUtil;
@@ -33,6 +34,7 @@ public class OrderServiceImpl implements OrderService {
     private final ModelMapper modelMapper;
     private final AuthUtil authUtil;
     private final ApplicationEventPublisher eventPublisher;
+    private final InventoryService inventoryService;
 
     // @Transactional on every method here: Order.items is a lazy @OneToMany, and with
     // spring.jpa.open-in-view=false (see application.properties) there's no session left open
@@ -44,6 +46,21 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findByOrderIdAndEmail(orderId, emailId)
                 .orElseThrow(() -> new ResourceNotFoundException("order", "orderId", orderId));
         return modelMapper.map(order, OrderDTO.class);
+    }
+
+    @Override
+    @Transactional
+    public OrderDTO cancelOrderForUser(String emailId, Long orderId) {
+        Order order = orderRepository.findByOrderIdAndEmail(orderId, emailId)
+                .orElseThrow(() -> new ResourceNotFoundException("order", "orderId", orderId));
+        if (!OrderStatus.PENDING_PAYMENT.name().equals(order.getOrderStatus())) {
+            throw new APIException("Only orders awaiting payment can be cancelled");
+        }
+
+        order.setOrderStatus(OrderStatus.CANCELLED.name());
+        inventoryService.releaseReservationsForOrder(orderId);
+        Order saved = orderRepository.save(order);
+        return modelMapper.map(saved, OrderDTO.class);
     }
 
     // Customer-scoped order history - findByEmail restricts the query itself rather than

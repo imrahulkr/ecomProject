@@ -66,11 +66,32 @@ public class OrderPaymentReconciliationListener {
         PaymentAttempt attempt = attemptOpt.get();
         Order order = attempt.getOrder();
 
+        if (!matchesAttemptAmount(event, attempt)) {
+            logger.warn("Ignoring payment event with mismatched amount/currency: provider={}, reference={}, expected={} {}, received={} {}",
+                event.getProviderName(), event.getProviderPaymentReference(),
+                attempt.getAmountMinorUnits(), attempt.getCurrency(),
+                event.getAmountMinorUnits(), event.getCurrency());
+            return;
+        }
+
         if (event.getType() == PaymentEventType.PAYMENT_SUCCEEDED) {
             handleSuccess(attempt, order);
         } else if (event.getType() == PaymentEventType.PAYMENT_FAILED) {
             handleFailure(attempt, order, event.getFailureReason());
         }
+    }
+
+    private boolean matchesAttemptAmount(PaymentEvent event, PaymentAttempt attempt) {
+        if (event.getType() == PaymentEventType.PAYMENT_SUCCEEDED
+                && (event.getAmountMinorUnits() == null || event.getCurrency() == null)) {
+            return false;
+        }
+        if (event.getAmountMinorUnits() != null
+                && event.getAmountMinorUnits() != attempt.getAmountMinorUnits()) {
+            return false;
+        }
+        return event.getCurrency() == null
+                || event.getCurrency().equalsIgnoreCase(attempt.getCurrency());
     }
 
     private void handleSuccess(PaymentAttempt attempt, Order order) {

@@ -33,40 +33,21 @@ public class AddressServiceImpl implements AddressService{
 
     @Override
     public AddressDTO getAddressById(User user, Long addressId) {
-        Address address = null;
-        List<Address> addressList = user.getAddresses();
-        for(Address curAddress : addressList){
-            if(curAddress.getAddressId().equals(addressId)){
-                address = curAddress;
-                break;
-            }
-        }
-
-        if(address == null){
-            throw new ResourceNotFoundException("Address", "addressId", addressId);
-        }
+        Address address = findOwnedAddress(user, addressId);
         return modelMapper.map(address, AddressDTO.class);
     }
 
     @Override
-    public AddressDTO getAddressById(Long addressId) {
-        Address address = addressRepository.findById(addressId).orElseThrow( () ->
-                new ResourceNotFoundException("Address", "addressId", addressId));
-        return modelMapper.map(address, AddressDTO.class);
-    }
-
-    @Override
-    public List<AddressDTO> getAddresses() {
-        List<Address> addressList = addressRepository.findAll();
+    public List<AddressDTO> getAddresses(User user) {
+        List<Address> addressList = addressRepository.findByUser_UserId(user.getUserId());
         List<AddressDTO> addressDTOs = addressList.stream().map(address ->
                 modelMapper.map(address, AddressDTO.class)).toList();
         return addressDTOs;
     }
 
     @Override
-    public AddressDTO updateAddress(Long addressId, AddressDTO addressDTO) {
-        Address currAddress = addressRepository.findById(addressId).orElseThrow(
-                () -> new ResourceNotFoundException("Address", "addressId", addressId));
+    public AddressDTO updateAddress(User user, Long addressId, AddressDTO addressDTO) {
+        Address currAddress = findOwnedAddress(user, addressId);
         currAddress.setCity(addressDTO.getCity());
         currAddress.setCountry(addressDTO.getCountry());
         currAddress.setStreet(addressDTO.getStreet());
@@ -78,10 +59,17 @@ public class AddressServiceImpl implements AddressService{
     }
 
     @Override
-    public String deleteAddress(Long addressId) {
-        Address curAddress = addressRepository.findById(addressId).orElseThrow(() ->
-                new ResourceNotFoundException("Address", "addressId", addressId));
+    public String deleteAddress(User user, Long addressId) {
+        Address curAddress = findOwnedAddress(user, addressId);
         addressRepository.delete(curAddress);
         return "Address has been removed successfully !!! ";
+    }
+
+    private Address findOwnedAddress(User user, Long addressId) {
+        Address address = addressRepository.findByAddressIdAndUser_UserId(addressId, user.getUserId());
+        if (address == null) {
+            throw new ResourceNotFoundException("Address", "addressId", addressId);
+        }
+        return address;
     }
 }

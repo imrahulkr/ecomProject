@@ -17,8 +17,9 @@ import org.springframework.stereotype.Service;
 
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Set;
 import java.util.stream.Stream;
 
 @Service
@@ -36,6 +37,9 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public CartDTO addProductToCart(Long productId, Integer quantity) {
+        if (quantity == null || quantity < 1) {
+            throw new APIException("Cart quantity must be greater than zero");
+        }
         // Find Existing Cart or Create new for the logged in user
         Cart cart = createCart();
         // Retrive priduct details (using productId);
@@ -55,12 +59,12 @@ public class CartServiceImpl implements CartService {
         newCartItem.setQuantity(quantity);
         newCartItem.setCart(cart);
         newCartItem.setDiscount(product.getDiscount());
-        newCartItem.setProductPriceMinorUnits(product.getPriceMinorUnits());
+        newCartItem.setProductPriceMinorUnits(product.getSpecialPriceMinorUnits());
         newCartItem.setCurrency(product.getCurrency());
 
         // Save CartItem
         cartItemRepository.save(newCartItem);
-        cart.setTotalPriceMinorUnits(cart.getTotalPriceMinorUnits() + (product.getSpecialPriceMinorUnits() * quantity));
+        refreshCartTotal(cart);
         cartRepository.save(cart);
 
         // return updated cart Info
@@ -95,20 +99,31 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public CartDTO updateCartProduct(Long productId, Integer quantity) {
+        if (quantity == null || (quantity != 1 && quantity != -1)) {
+            throw new APIException("Cart quantity changes must be exactly one unit");
+        }
         String emailId = authUtil.loggedInEmail();
-        Long cartId = cartRepository.findCartByEmail(emailId).getCartId();
+        Cart userCart = cartRepository.findCartByEmail(emailId);
+        if (userCart == null) {
+            throw new ResourceNotFoundException("Cart", "email", emailId);
+        }
+        Long cartId = userCart.getCartId();
         Cart cart = cartRepository.findById(cartId).orElseThrow(() -> new ResourceNotFoundException("Cart ", "cartId", cartId));
 
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product ", "productId", productId));
 
-        if (product.getQuantity() < quantity) {
-            throw new APIException("Product " + product.getProductName() + " is either not available or has less quantity");
+        CartItem currCartItem = cartItemRepository.findCartItemByProductIdAndCartId(cart.getCartId(), productId);
+        if (currCartItem == null) {
+            throw new APIException("Product " + product.getProductName() + " does not exist in Cart !!!");
         }
 
-        CartItem currCartItem = cartItemRepository.findCartItemByProductIdAndCartId(cart.getCartId(), productId);
-        if(currCartItem == null) {
-            throw new APIException("Product " + product.getProductName() + " does not exist in Cart !!!");
+        int updatedQuantity = currCartItem.getQuantity() + quantity;
+        if (updatedQuantity < 0) {
+            throw new APIException("Cart quantity cannot be negative");
+        }
+        if (updatedQuantity > product.getQuantity()) {
+            throw new APIException("Product " + product.getProductName() + " is either not available or has less quantity");
         }
         currCartItem.setQuantity(currCartItem.getQuantity() + quantity);
 
@@ -116,7 +131,7 @@ public class CartServiceImpl implements CartService {
         CartItem updatedCartItem =  cartItemRepository.save(currCartItem);
         if(updatedCartItem.getQuantity() == 0) cartItemRepository.deleteById(updatedCartItem.getCartItemId());
 
-        cart.setTotalPriceMinorUnits(cart.getTotalPriceMinorUnits() + (product.getSpecialPriceMinorUnits() * quantity));
+        refreshCartTotal(cart);
         cartRepository.save(cart);
 
         // return updated cart Info
@@ -139,9 +154,9 @@ public class CartServiceImpl implements CartService {
         if(cartItem == null) {
             throw new ResourceNotFoundException("Product ", "productId", productId);
         }
-        cart.setTotalPriceMinorUnits(cart.getTotalPriceMinorUnits() - (cartItem.getProductPriceMinorUnits() * cartItem.getQuantity()));
-        cartRepository.save(cart);
         cartItemRepository.deleteCartItemByProductIdAndCartId(cartId, productId);
+        refreshCartTotal(cart);
+        cartRepository.save(cart);
         return "Product : " + cartItem.getProduct().getProductName() + " has been deleted";
     }
 
@@ -164,18 +179,23 @@ public class CartServiceImpl implements CartService {
             cartItemRepository.deleteAllByCartId(existingCart.getCartId());
         }
 
-        long totalPriceMinorUnits = 0L;
-
+        Set<Long> requestedProductIds = new HashSet<>();
         // Process each item in the request to add to the cart
         for (CartItemDTO cartItemDTO : cartItems) {
             Long productId = cartItemDTO.productId();
             Integer quantity = cartItemDTO.quantity();
 
+            if (!requestedProductIds.add(productId)) {
+                throw new APIException("A product may only appear once in the cart request");
+            }
+
             // Find the product by ID
             Product product = productRepository.findById(productId)
                     .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
 
-            totalPriceMinorUnits += product.getSpecialPriceMinorUnits() * quantity;
+            if (quantity == null || quantity < 1 || quantity > product.getQuantity()) {
+                throw new APIException("Product " + product.getProductName() + " is either not available or has less quantity");
+            }
 
             // Create and save cart item
             CartItem cartItem = new CartItem();
@@ -188,8 +208,8 @@ public class CartServiceImpl implements CartService {
             cartItemRepository.save(cartItem);
         }
 
-        // Update the cart's total price and save
-        existingCart.setTotalPriceMinorUnits(totalPriceMinorUnits);
+        // Update the cart's total from the persisted line-item prices.
+        refreshCartTotal(existingCart);
         cartRepository.save(existingCart);
         return "Cart created/updated with the new items successfully";
     }
@@ -204,21 +224,23 @@ public class CartServiceImpl implements CartService {
         return cartRepository.save(cart);
     }
 
+    private void refreshCartTotal(Cart cart) {
+        cart.setTotalPriceMinorUnits(cartItemRepository.calculateTotalPriceMinorUnits(cart.getCartId()));
+    }
+
     @Transactional
     public List<CartDTO> getAllCarts() {
-        List<Cart> carts = cartRepository.findAll();
-        if (carts.isEmpty()) return Collections.emptyList();
+        Cart userCart = cartRepository.findCartByEmail(authUtil.loggedInEmail());
+        if (userCart == null) return Collections.emptyList();
 
-        return carts.stream().map(cart ->{
-            CartDTO cartDTO = modelMapper.map(cart, CartDTO.class);
+        CartDTO cartDTO = modelMapper.map(userCart, CartDTO.class);
 
-            List<ProductDTO> productDTOs = cart.getCartItems().stream().map(cartItem -> {
-                        ProductDTO productDTO = modelMapper.map(cartItem.getProduct(), ProductDTO.class);
-                        productDTO.setQuantity(cartItem.getQuantity());
-                        return productDTO;
-                    }).toList();
-                    cartDTO.setProducts(productDTOs);
-                    return cartDTO;
-        }).collect(Collectors.toList());
+        List<ProductDTO> productDTOs = userCart.getCartItems().stream().map(cartItem -> {
+            ProductDTO productDTO = modelMapper.map(cartItem.getProduct(), ProductDTO.class);
+            productDTO.setQuantity(cartItem.getQuantity());
+            return productDTO;
+        }).toList();
+        cartDTO.setProducts(productDTOs);
+        return List.of(cartDTO);
     }
 }

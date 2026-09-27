@@ -4,6 +4,7 @@ import com.ecommerce.project.address.Address;
 import com.ecommerce.project.address.AddressRepository;
 import com.ecommerce.project.cart.Cart;
 import com.ecommerce.project.cart.CartItem;
+import com.ecommerce.project.cart.CartItemRepository;
 import com.ecommerce.project.cart.CartRepository;
 import com.ecommerce.project.exceptions.APIException;
 import com.ecommerce.project.exceptions.ResourceNotFoundException;
@@ -32,6 +33,7 @@ import java.util.List;
 class CheckoutTransactionExecutor {
 
     private final CartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
     private final AddressRepository addressRepository;
     private final InventoryService inventoryService;
     private final OrderRepository orderRepository;
@@ -46,6 +48,9 @@ class CheckoutTransactionExecutor {
         if (cart == null || cart.getCartItems().isEmpty()) {
             throw new APIException("Cart is empty");
         }
+
+        cart.setTotalPriceMinorUnits(cartItemRepository.calculateTotalPriceMinorUnits(cart.getCartId()));
+        cartRepository.save(cart);
 
         Address address = addressRepository.findByAddressId(addressId);
         if (address == null) {

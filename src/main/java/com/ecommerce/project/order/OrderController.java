@@ -44,6 +44,13 @@ public class OrderController {
         return new ResponseEntity<>(orderDTO, HttpStatus.OK);
     }
 
+    @DeleteMapping("/orders/{orderId}")
+    public ResponseEntity<OrderDTO> cancelOrder(@PathVariable Long orderId) {
+        String emailId = authUtil.loggedInEmail();
+        OrderDTO orderDTO = orderService.cancelOrderForUser(emailId, orderId);
+        return new ResponseEntity<>(orderDTO, HttpStatus.OK);
+    }
+
     @GetMapping("/seller/orders")
     public ResponseEntity<OrderResponse> getAllSellerOrders(
             @RequestParam(name = "pageNumber", defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,

@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import com.ecommerce.project.auth.dto.AuthenticationResult;
 import com.ecommerce.project.auth.dto.ForgotPasswordRequestDTO;
 import com.ecommerce.project.auth.dto.PasswordChangeRequestDTO;
+import com.ecommerce.project.auth.dto.SellerSummaryDTO;
 import com.ecommerce.project.auth.dto.UserDTO;
 import com.ecommerce.project.auth.dto.UserResponse;
 
@@ -185,8 +186,12 @@ public class AuthServiceImpl implements AuthService{
     public UserResponse getAllSellers(Pageable pageDetails) {
         Page<User> allSellerUsers = userRepository.findByRoleName(AppRole.ROLE_SELLER, pageDetails);
 
-        List<UserDTO> userDTOS = allSellerUsers.getContent().stream()
-                .map(user -> modelMapper.map(user, UserDTO.class))
+        List<SellerSummaryDTO> userDTOS = allSellerUsers.getContent().stream()
+            .map(user -> new SellerSummaryDTO(
+                user.getUserId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getName()))
                 .collect(Collectors.toList());
 
         UserResponse userResponse = new UserResponse(

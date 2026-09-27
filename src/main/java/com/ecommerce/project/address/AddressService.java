@@ -10,10 +10,9 @@ public interface AddressService {
     public AddressDTO createAddress(AddressDTO addressDTO, User user);
     List<AddressDTO> getUserAddresses(User loggedInUser);
     AddressDTO getAddressById(User loggedInUser, Long addressId);
-    AddressDTO getAddressById(Long addressId);
-    List<AddressDTO> getAddresses();
+    List<AddressDTO> getAddresses(User loggedInUser);
 
-    AddressDTO updateAddress(Long addressId, @Valid AddressDTO addressDTO);
+    AddressDTO updateAddress(User loggedInUser, Long addressId, @Valid AddressDTO addressDTO);
 
-    String deleteAddress(Long addressId);
+    String deleteAddress(User loggedInUser, Long addressId);
 }
