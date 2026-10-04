@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="Vendora system architecture">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#334155"/></marker>
+    <marker id="arrP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#7c3aed"/></marker>
+    <linearGradient id="hdr" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#4f46e5"/><stop offset="100%" stop-color="#db2777"/></linearGradient>
+  </defs>
+  <style>
+    text { font-family: "Segoe UI", Helvetica, Arial, sans-serif; fill: #0f172a; }
+    .n { font-size: 16px; font-weight: 700; }
+    .l { font-size: 14px; fill: #334155; }
+    .s { font-size: 13px; fill: #475569; }
+    .h { font-size: 15px; font-weight: 700; fill: #ffffff; }
+  </style>
+  <rect width="1200" height="800" rx="20" fill="#f8fafc"/>
+  <rect x="0" y="0" width="1200" height="92" rx="20" fill="url(#hdr)"/>
+  <rect x="0" y="60" width="1200" height="32" fill="url(#hdr)"/>
+  <text x="32" y="48" style="font-size:26px;font-weight:800;fill:#ffffff">How the pieces fit together</text>
+  <text x="32" y="76" style="font-size:15px;fill:#e0e7ff">One Spring Boot service, one PostgreSQL database, React in front, payment and identity providers outside</text>
+
+  <!-- Column A: clients -->
+  <rect x="32" y="120" width="210" height="130" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="2.5"/>
+  <text class="n" x="137" y="150" text-anchor="middle">Browser</text>
+  <text class="l" x="137" y="176" text-anchor="middle">React 19 + Vite SPA</text>
+  <text class="l" x="137" y="198" text-anchor="middle">TanStack Query, zustand</text>
+  <text class="l" x="137" y="220" text-anchor="middle">JWT kept in memory only</text>
+
+  <rect x="32" y="290" width="210" height="100" rx="14" fill="#ede9fe" stroke="#7c3aed" stroke-width="2.5"/>
+  <text class="n" x="137" y="320" text-anchor="middle">Stripe.js / Razorpay</text>
+  <text class="l" x="137" y="346" text-anchor="middle">card data goes straight</text>
+  <text class="l" x="137" y="368" text-anchor="middle">to the provider</text>
+
+  <!-- Column B: edge -->
+  <rect x="282" y="120" width="170" height="130" rx="14" fill="#cffafe" stroke="#0891b2" stroke-width="2.5"/>
+  <text class="n" x="367" y="150" text-anchor="middle">nginx</text>
+  <text class="s" x="367" y="174" text-anchor="middle">(Vite proxy in dev)</text>
+  <text class="l" x="367" y="200" text-anchor="middle">/ → React app</text>
+  <text class="l" x="367" y="222" text-anchor="middle">/api, /images → :8080</text>
+
+  <!-- Column C: backend -->
+  <rect x="492" y="110" width="420" height="634" rx="16" fill="#fff7ed" stroke="#ea580c" stroke-width="2.5"/>
+  <text class="n" x="702" y="140" text-anchor="middle" style="fill:#9a3412">Spring Boot 4 · Java 21 (modular monolith)</text>
+
+  <rect x="508" y="156" width="388" height="52" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text class="n" x="702" y="178" text-anchor="middle" style="font-size:15px">Security filter chain</text>
+  <text class="s" x="702" y="198" text-anchor="middle">JWT filter · OAuth2 login · rate limits · CORS</text>
+
+  <g>
+    <rect x="508" y="222" width="186" height="58" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+    <text class="n" x="601" y="246" text-anchor="middle" style="font-size:15px">auth · security</text>
+    <text class="s" x="601" y="268" text-anchor="middle">login, refresh, OAuth</text>
+    <rect x="710" y="222" width="186" height="58" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+    <text class="n" x="803" y="246" text-anchor="middle" style="font-size:15px">product · category</text>
+    <text class="s" x="803" y="268" text-anchor="middle">soft delete, search</text>
+
+    <rect x="508" y="292" width="186" height="58" rx="10" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5"/>
+    <text class="n" x="601" y="316" text-anchor="middle" style="font-size:15px">cart · coupon</text>
+    <text class="s" x="601" y="338" text-anchor="middle">repricing, locked coupons</text>
+    <rect x="710" y="292" width="186" height="58" rx="10" fill="#ffedd5" stroke="#ea580c" stroke-width="1.5"/>
+    <text class="n" x="803" y="316" text-anchor="middle" style="font-size:15px">checkout · inventory</text>
+    <text class="s" x="803" y="338" text-anchor="middle">idempotent, holds stock</text>
+
+    <rect x="508" y="362" width="186" height="58" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+    <text class="n" x="601" y="386" text-anchor="middle" style="font-size:15px">payment</text>
+    <text class="s" x="601" y="408" text-anchor="middle">providers + webhooks</text>
+    <rect x="710" y="362" width="186" height="58" rx="10" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5"/>
+    <text class="n" x="803" y="386" text-anchor="middle" style="font-size:15px">order</text>
+    <text class="s" x="803" y="408" text-anchor="middle">fulfilment, returns</text>
+
+    <rect x="508" y="432" width="186" height="58" rx="10" fill="#ffe4e6" stroke="#e11d48" stroke-width="1.5"/>
+    <text class="n" x="601" y="456" text-anchor="middle" style="font-size:15px">refund</text>
+    <text class="s" x="601" y="478" text-anchor="middle">item refunds, retries</text>
+    <rect x="710" y="432" width="186" height="58" rx="10" fill="#ccfbf1" stroke="#0d9488" stroke-width="1.5"/>
+    <text class="n" x="803" y="456" text-anchor="middle" style="font-size:15px">payout</text>
+    <text class="s" x="803" y="478" text-anchor="middle">seller ledger, payouts</text>
+
+    <rect x="508" y="502" width="186" height="58" rx="10" fill="#fae8ff" stroke="#c026d3" stroke-width="1.5"/>
+    <text class="n" x="601" y="526" text-anchor="middle" style="font-size:15px">review · wishlist</text>
+    <text class="s" x="601" y="548" text-anchor="middle">verified buyers only</text>
+    <rect x="710" y="502" width="186" height="58" rx="10" fill="#e2e8f0" stroke="#475569" stroke-width="1.5"/>
+    <text class="n" x="803" y="526" text-anchor="middle" style="font-size:15px">admin · analytics</text>
+    <text class="s" x="803" y="548" text-anchor="middle">users, sellers, KPIs</text>
+  </g>
+
+  <rect x="508" y="576" width="388" height="80" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text class="n" x="702" y="600" text-anchor="middle" style="font-size:15px">Scheduled jobs</text>
+  <text class="s" x="702" y="622" text-anchor="middle">payment reconciliation (60 s) · reservation expiry</text>
+  <text class="s" x="702" y="642" text-anchor="middle">email outbox sender (5 s) · data retention (03:30)</text>
+
+  <rect x="508" y="672" width="388" height="56" rx="10" fill="#fce7f3" stroke="#db2777" stroke-width="2"/>
+  <text class="n" x="702" y="696" text-anchor="middle" style="font-size:15px">notification/email</text>
+  <text class="s" x="702" y="716" text-anchor="middle">domain events → Thymeleaf → transactional outbox</text>
+
+  <!-- Column D: data + external -->
+  <g>
+    <path d="M952 140 a108 22 0 0 0 216 0 v120 a108 22 0 0 1 -216 0 z" fill="#ccfbf1" stroke="#0d9488" stroke-width="2.5"/>
+    <ellipse cx="1060" cy="140" rx="108" ry="22" fill="#99f6e4" stroke="#0d9488" stroke-width="2.5"/>
+    <text class="n" x="1060" y="196" text-anchor="middle">PostgreSQL 16</text>
+    <text class="l" x="1060" y="222" text-anchor="middle">Flyway V0–V20 owns schema</text>
+    <text class="l" x="1060" y="244" text-anchor="middle">Hibernate validate only</text>
+  </g>
+
+  <rect x="952" y="320" width="216" height="384" rx="16" fill="#f1f5f9" stroke="#64748b" stroke-width="2" stroke-dasharray="6 5"/>
+  <text class="n" x="1060" y="346" text-anchor="middle" style="fill:#334155">External services</text>
+  <rect x="968" y="360" width="184" height="56" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+  <text class="n" x="1060" y="384" text-anchor="middle" style="font-size:15px">Stripe</text>
+  <text class="s" x="1060" y="404" text-anchor="middle">PaymentIntents, refunds</text>
+  <rect x="968" y="428" width="184" height="56" rx="10" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
+  <text class="n" x="1060" y="452" text-anchor="middle" style="font-size:15px">Razorpay</text>
+  <text class="s" x="1060" y="472" text-anchor="middle">orders, captures, refunds</text>
+  <rect x="968" y="496" width="184" height="56" rx="10" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+  <text class="n" x="1060" y="520" text-anchor="middle" style="font-size:15px">Google / GitHub</text>
+  <text class="s" x="1060" y="540" text-anchor="middle">OAuth2 sign-in</text>
+  <rect x="968" y="564" width="184" height="56" rx="10" fill="#fce7f3" stroke="#be185d" stroke-width="1.5"/>
+  <text class="n" x="1060" y="588" text-anchor="middle" style="font-size:15px">Resend / SMTP</text>
+  <text class="s" x="1060" y="608" text-anchor="middle">Mailpit in Docker</text>
+  <rect x="968" y="632" width="184" height="56" rx="10" fill="#e2e8f0" stroke="#475569" stroke-width="1.5"/>
+  <text class="n" x="1060" y="656" text-anchor="middle" style="font-size:15px">Image storage</text>
+  <text class="s" x="1060" y="676" text-anchor="middle">local disk or S3</text>
+
+  <!-- connectors -->
+  <g fill="none" stroke="#334155" stroke-width="2.5">
+    <path d="M242 185H280" marker-end="url(#arr)"/>
+    <path d="M452 185H490" marker-end="url(#arr)"/>
+    <path d="M912 200H950" marker-end="url(#arr)"/>
+    <path d="M912 410H950" marker-end="url(#arr)"/>
+    <path d="M137 250V288" marker-end="url(#arr)"/>
+  </g>
+  <g fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-dasharray="7 5">
+    <path d="M950 444H914" marker-end="url(#arrP)"/>
+    <path d="M137 390V766H1060V706" marker-end="url(#arrP)"/>
+  </g>
+  <text class="s" x="931" y="191" text-anchor="middle">JDBC</text>
+  <text class="s" x="931" y="401" text-anchor="middle">API</text>
+  <text class="s" x="931" y="468" text-anchor="middle" style="fill:#7c3aed">hooks</text>
+  <text class="s" x="600" y="758" text-anchor="middle" style="fill:#6d28d9;font-weight:600">card details go directly from the browser to the payment provider</text>
+</svg>
