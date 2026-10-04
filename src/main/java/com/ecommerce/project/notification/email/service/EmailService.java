@@ -14,6 +14,7 @@ public interface EmailService {
     void sendPaymentFailedEmail(Order order, String reason);
     void sendShippingUpdate(OrderItem orderItem);
     void sendDeliveryConfirmation(OrderItem orderItem);
+    void sendRefundProcessed(OrderItem orderItem, long amountMinorUnits, String reason);
     void sendAbandonedCartReminder(User user, Cart cart);
     void sendSellerApplicationApprovedEmail(SellerApplication application);
     void sendSellerApplicationRejectedEmail(SellerApplication application);

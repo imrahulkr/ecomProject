@@ -1,5 +1,6 @@
 package com.ecommerce.project.admin;
 
+import com.ecommerce.project.refund.RefundService;
 import com.ecommerce.project.order.OrderService;
 import com.ecommerce.project.order.dto.FulfillmentUpdateDTO;
 import com.ecommerce.project.order.dto.OrderItemDTO;
@@ -21,12 +22,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminOrderItemController {
 
     private final OrderService orderService;
+    private final RefundService refundService;
 
     @PutMapping("/{orderItemId}/fulfillment")
     public ResponseEntity<OrderItemDTO> updateFulfillmentStatus(
             @PathVariable Long orderItemId,
             @RequestBody FulfillmentUpdateDTO update
     ) {
+        if (RefundService.isRefunding(update.status())) {
+            return ResponseEntity.ok(refundService.refundItem(orderItemId, null, update.status(),
+                    RefundService.reasonFor(update.status(), "marketplace")));
+        }
         OrderItemDTO orderItemDTO = orderService.updateFulfillmentStatusAsAdmin(orderItemId, update);
         return new ResponseEntity<>(orderItemDTO, HttpStatus.OK);
     }

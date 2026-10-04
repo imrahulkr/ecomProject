@@ -20,7 +20,8 @@ public class ProductController {
     private final ProductService productService;
     private final AuthUtil authUtil;
 
-    @PostMapping("/admin/categories/{categoryId}/product")
+    // First path is canonical; the second is kept as a deprecated alias for existing clients.
+    @PostMapping({"/admin/categories/{categoryId}/products", "/admin/categories/{categoryId}/product"})
     public ResponseEntity<ProductDTO> addProduct(@Valid @RequestBody ProductDTO productDTO, @PathVariable Long categoryId) {
         ProductDTO savedProductDTO = productService.addProduct(categoryId, productDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedProductDTO);
@@ -66,13 +67,15 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.OK).body(productResponse);
     }
 
-    @PutMapping("/admin/product/{productId}")
+    // First path is canonical; the second is kept as a deprecated alias for existing clients.
+    @PutMapping({"/admin/products/{productId}", "/admin/product/{productId}"})
     public ResponseEntity<ProductDTO> updateProduct(@Valid @RequestBody ProductDTO productDTO, @PathVariable Long productId) {
         ProductDTO updatedProductDTO = productService.updateProduct(productId, productDTO);
         return ResponseEntity.status(HttpStatus.OK).body(updatedProductDTO);
     }
 
-    @DeleteMapping("/admin/product/{productId}")
+    // First path is canonical; the second is kept as a deprecated alias for existing clients.
+    @DeleteMapping({"/admin/products/{productId}", "/admin/product/{productId}"})
     public ResponseEntity<ProductDTO> deleteProduct(@PathVariable Long productId) {
         ProductDTO deletedProductDTO = productService.deleteProduct(productId);
         return ResponseEntity.status(HttpStatus.OK).body(deletedProductDTO);

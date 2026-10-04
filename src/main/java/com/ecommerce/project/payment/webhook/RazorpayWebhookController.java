@@ -53,6 +53,7 @@ public class RazorpayWebhookController {
 
         PaymentEventType mappedType;
         String reference;
+        String paymentId = null;
         Long amountMinorUnits = null;
         String currency = null;
         String failureReason = null;
@@ -63,6 +64,7 @@ public class RazorpayWebhookController {
                 if (payment == null) return ResponseEntity.ok().build();
                 mappedType = PaymentEventType.PAYMENT_SUCCEEDED;
                 reference = payment.optString("order_id", null);
+                paymentId = payment.optString("id", null);
                 amountMinorUnits = payment.has("amount") ? payment.getLong("amount") : null;
                 currency = payment.optString("currency", null);
             }
@@ -71,6 +73,7 @@ public class RazorpayWebhookController {
                 if (payment == null) return ResponseEntity.ok().build();
                 mappedType = PaymentEventType.PAYMENT_FAILED;
                 reference = payment.optString("order_id", null);
+                paymentId = payment.optString("id", null);
                 amountMinorUnits = payment.has("amount") ? payment.getLong("amount") : null;
                 currency = payment.optString("currency", null);
                 failureReason = payment.optString("error_description", null);
@@ -98,6 +101,7 @@ public class RazorpayWebhookController {
                 .providerEventId(eventId)
                 .type(mappedType)
                 .providerPaymentReference(reference)
+                .providerPaymentId(paymentId)
                 .amountMinorUnits(amountMinorUnits)
                 .currency(currency)
                 .occurredAt(Instant.now())

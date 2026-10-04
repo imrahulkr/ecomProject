@@ -1,5 +1,7 @@
 package com.ecommerce.project.notification.email.service;
 
+import com.ecommerce.project.notification.email.outbox.EmailOutbox;
+
 import com.ecommerce.project.cart.Cart;
 import com.ecommerce.project.order.Order;
 import com.ecommerce.project.order.OrderItem;
@@ -28,7 +30,8 @@ public class EmailServiceImpl implements EmailService {
     private static final Logger logger = LoggerFactory.getLogger(EmailServiceImpl.class);
 
     private final EmailTemplateEngine templateEngine;
-    private final EmailRetryService emailRetryService;
+    // Emails are queued in the caller's transaction and delivered by EmailOutboxSender.
+    private final EmailOutbox emailOutbox;
     private final PaymentAttemptRepository paymentAttemptRepository;
 
     @Value("${app.email.default-from}")
@@ -38,10 +41,10 @@ public class EmailServiceImpl implements EmailService {
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
-    public EmailServiceImpl(EmailTemplateEngine templateEngine, EmailRetryService emailRetryService,
+    public EmailServiceImpl(EmailTemplateEngine templateEngine, EmailOutbox emailOutbox,
                              PaymentAttemptRepository paymentAttemptRepository) {
         this.templateEngine = templateEngine;
-        this.emailRetryService = emailRetryService;
+        this.emailOutbox = emailOutbox;
         this.paymentAttemptRepository = paymentAttemptRepository;
     }
 
@@ -61,7 +64,7 @@ public class EmailServiceImpl implements EmailService {
                 .priority(EmailPriority.HIGH)
                 .metadata(Map.of("userId", String.valueOf(user.getUserId())))
                 .build();
-        emailRetryService.sendEmailWithRetry(request);
+        emailOutbox.enqueue(request);
     }
 
     @Override
@@ -80,7 +83,7 @@ public class EmailServiceImpl implements EmailService {
                 .priority(EmailPriority.HIGH)
                 .metadata(Map.of("userId", String.valueOf(user.getUserId())))
                 .build();
-        emailRetryService.sendEmailWithRetry(request);
+        emailOutbox.enqueue(request);
     }
 
     @Override
@@ -98,7 +101,7 @@ public class EmailServiceImpl implements EmailService {
                 .priority(EmailPriority.HIGH)
                 .metadata(Map.of("userId", String.valueOf(user.getUserId())))
                 .build();
-        emailRetryService.sendEmailWithRetry(request);
+        emailOutbox.enqueue(request);
     }
 
     @Override
@@ -125,7 +128,7 @@ public class EmailServiceImpl implements EmailService {
                 .priority(EmailPriority.HIGH)
                 .metadata(Map.of("orderId", String.valueOf(order.getOrderId())))
                 .build();
-        emailRetryService.sendEmailWithRetry(request);
+        emailOutbox.enqueue(request);
     }
 
     @Override
@@ -146,7 +149,31 @@ public class EmailServiceImpl implements EmailService {
                 .priority(EmailPriority.HIGH)
                 .metadata(Map.of("orderId", String.valueOf(order.getOrderId())))
                 .build();
-        emailRetryService.sendEmailWithRetry(request);
+        emailOutbox.enqueue(request);
+    }
+
+    @Override
+    public void sendRefundProcessed(OrderItem orderItem, long amountMinorUnits, String reason) {
+        Order order = orderItem.getOrder();
+        Map<String, Object> vars = Map.of(
+                "name", customerName(order),
+                "orderNumber", String.valueOf(order.getOrderId()),
+                "productName", orderItem.getProduct().getProductName(),
+                "reason", reason != null ? reason : "Refund",
+                "amount", order.getCurrency() + " " + String.format("%.2f", amountMinorUnits / 100.0),
+                "orderUrl", frontendUrl + "/orders/" + order.getOrderId()
+        );
+        EmailRequest request = EmailRequest.builder()
+                .to(order.getEmail())
+                .from(defaultFrom)
+                .subject("Your refund for order #" + order.getOrderId())
+                .htmlBody(templateEngine.render("refund-processed", vars))
+                .emailType(EmailType.REFUND_PROCESSED)
+                .priority(EmailPriority.NORMAL)
+                .metadata(Map.of("orderId", String.valueOf(order.getOrderId()),
+                        "orderItemId", String.valueOf(orderItem.getOrderItemId())))
+                .build();
+        emailOutbox.enqueue(request);
     }
 
     @Override
@@ -171,7 +198,7 @@ public class EmailServiceImpl implements EmailService {
                 .metadata(Map.of("orderId", String.valueOf(order.getOrderId()),
                         "orderItemId", String.valueOf(orderItem.getOrderItemId())))
                 .build();
-        emailRetryService.sendEmailWithRetry(request);
+        emailOutbox.enqueue(request);
     }
 
     @Override
@@ -194,7 +221,7 @@ public class EmailServiceImpl implements EmailService {
                 .metadata(Map.of("orderId", String.valueOf(order.getOrderId()),
                         "orderItemId", String.valueOf(orderItem.getOrderItemId())))
                 .build();
-        emailRetryService.sendEmailWithRetry(request);
+        emailOutbox.enqueue(request);
     }
 
     private String customerName(Order order) {
@@ -233,7 +260,7 @@ public class EmailServiceImpl implements EmailService {
                 .metadata(Map.of("userId", String.valueOf(user.getUserId()),
                         "applicationId", String.valueOf(application.getId())))
                 .build();
-        emailRetryService.sendEmailWithRetry(request);
+        emailOutbox.enqueue(request);
     }
 
     @Override
@@ -256,7 +283,7 @@ public class EmailServiceImpl implements EmailService {
                 .metadata(Map.of("userId", String.valueOf(user.getUserId()),
                         "applicationId", String.valueOf(application.getId())))
                 .build();
-        emailRetryService.sendEmailWithRetry(request);
+        emailOutbox.enqueue(request);
     }
 
     @Override
@@ -283,6 +310,6 @@ public class EmailServiceImpl implements EmailService {
                 .priority(EmailPriority.NORMAL)
                 .metadata(Map.of("userId", String.valueOf(user.getUserId()), "cartId", String.valueOf(cart.getCartId())))
                 .build();
-        emailRetryService.sendEmailWithRetry(request);
+        emailOutbox.enqueue(request);
     }
 }

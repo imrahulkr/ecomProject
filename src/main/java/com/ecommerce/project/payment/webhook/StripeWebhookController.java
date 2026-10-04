@@ -54,6 +54,7 @@ public class StripeWebhookController {
         }
         PaymentEventType mappedType;
         String reference;
+        String paymentId = null;
         Long amountMinorUnits = null;
         String currency = null;
         String failureReason = null;
@@ -63,6 +64,7 @@ public class StripeWebhookController {
                 if (!(dataObject instanceof PaymentIntent paymentIntent)) return ResponseEntity.ok().build();
                 mappedType = PaymentEventType.PAYMENT_SUCCEEDED;
                 reference = paymentIntent.getId();
+                paymentId = paymentIntent.getId();
                 amountMinorUnits = paymentIntent.getAmount();
                 currency = paymentIntent.getCurrency();
             }
@@ -70,6 +72,7 @@ public class StripeWebhookController {
                 if (!(dataObject instanceof PaymentIntent paymentIntent)) return ResponseEntity.ok().build();
                 mappedType = PaymentEventType.PAYMENT_FAILED;
                 reference = paymentIntent.getId();
+                paymentId = paymentIntent.getId();
                 amountMinorUnits = paymentIntent.getAmount();
                 currency = paymentIntent.getCurrency();
                 failureReason = paymentIntent.getLastPaymentError() != null
@@ -95,6 +98,7 @@ public class StripeWebhookController {
                 .providerEventId(event.getId())
                 .type(mappedType)
                 .providerPaymentReference(reference)
+                .providerPaymentId(paymentId)
                 .amountMinorUnits(amountMinorUnits)
                 .currency(currency)
                 .occurredAt(Instant.ofEpochSecond(event.getCreated()))

@@ -1,9 +1,11 @@
 package com.ecommerce.project.payment.adapter.stripe;
 
+import com.stripe.net.RequestOptions;
 import com.ecommerce.project.payment.PaymentProvider;
 import com.ecommerce.project.payment.ProviderName;
 import com.ecommerce.project.payment.dto.CreatePaymentIntentRequest;
 import com.ecommerce.project.payment.dto.PaymentIntentResult;
+import com.ecommerce.project.payment.dto.PaymentStatusResult;
 import com.ecommerce.project.payment.dto.RefundRequest;
 import com.ecommerce.project.payment.dto.RefundResult;
 import com.ecommerce.project.payment.exception.PaymentProviderException;
@@ -66,7 +68,38 @@ public class StripePaymentProvider implements PaymentProvider {
                     .clientPayload(Map.of())
                     .build();
         } catch (StripeException e) {
-            throw new PaymentProviderException(ProviderName.STRIPE, "Failed to create Stripe payment intent", isRetryable(e), e);
+            throw new PaymentProviderException(ProviderName.STRIPE, "Failed to create Stripe payment intent: " + e.getMessage(), isRetryable(e), e);
+        }
+    }
+
+    @Override
+    public PaymentStatusResult fetchStatus(String providerPaymentReference) {
+        try {
+            PaymentIntent intent = new StripeClient(stripeApiKey).v1().paymentIntents().retrieve(providerPaymentReference);
+            PaymentStatusResult.State state = switch (intent.getStatus()) {
+                case "succeeded" -> PaymentStatusResult.State.SUCCEEDED;
+                case "canceled" -> PaymentStatusResult.State.CANCELLED;
+                // requires_payment_method (incl. after a decline), requires_action, processing, ...
+                default -> PaymentStatusResult.State.PENDING;
+            };
+            return PaymentStatusResult.builder()
+                    .state(state)
+                    .providerPaymentId(intent.getId())
+                    .amountMinorUnits(intent.getAmount())
+                    .currency(intent.getCurrency())
+                    .build();
+        } catch (StripeException e) {
+            throw new PaymentProviderException(ProviderName.STRIPE, "Failed to fetch Stripe payment intent: " + e.getMessage(), isRetryable(e), e);
+        }
+    }
+
+    @Override
+    public void cancel(String providerPaymentReference) {
+        try {
+            new StripeClient(stripeApiKey).v1().paymentIntents().cancel(providerPaymentReference);
+        } catch (StripeException e) {
+            // payment_intent_unexpected_state = already succeeded or already canceled.
+            throw new PaymentProviderException(ProviderName.STRIPE, "Failed to cancel Stripe payment intent: " + e.getMessage(), isRetryable(e), e);
         }
     }
 
@@ -79,7 +112,10 @@ public class StripePaymentProvider implements PaymentProvider {
             if (request.amountMinorUnits() != null) {
                 paramsBuilder.setAmount(request.amountMinorUnits());
             }
-            Refund refund = client.v1().refunds().create(paramsBuilder.build());
+            RequestOptions options = request.idempotencyKey() != null
+                    ? RequestOptions.builder().setIdempotencyKey(request.idempotencyKey()).build()
+                    : RequestOptions.getDefault();
+            Refund refund = client.v1().refunds().create(paramsBuilder.build(), options);
             return RefundResult.builder()
                     .providerName(ProviderName.STRIPE)
                     .providerRefundId(refund.getId())
@@ -87,7 +123,15 @@ public class StripePaymentProvider implements PaymentProvider {
                     .amountMinorUnits(refund.getAmount())
                     .build();
         } catch (StripeException e) {
-            throw new PaymentProviderException(ProviderName.STRIPE, "Failed to create Stripe refund", isRetryable(e), e);
+            // A retried refund (reconciliation retries REFUND_PENDING attempts) for a payment an
+            // earlier try already refunded - the outcome the caller wants, so report success.
+            if ("charge_already_refunded".equals(e.getCode())) {
+                return RefundResult.builder()
+                        .providerName(ProviderName.STRIPE)
+                        .status("succeeded")
+                        .build();
+            }
+            throw new PaymentProviderException(ProviderName.STRIPE, "Failed to create Stripe refund: " + e.getMessage(), isRetryable(e), e);
         }
     }
 

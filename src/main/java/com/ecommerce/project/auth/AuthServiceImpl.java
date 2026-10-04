@@ -1,5 +1,10 @@
 package com.ecommerce.project.auth;
 
+import com.ecommerce.project.security.services.RefreshTokenService;
+
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+
+import com.ecommerce.project.config.AppConstants;
 import com.ecommerce.project.exceptions.APIException;
 import com.ecommerce.project.notification.email.event.OnPasswordChangedEvent;
 import com.ecommerce.project.notification.email.event.OnPasswordResetRequestedEvent;
@@ -25,9 +30,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
-import com.ecommerce.project.auth.dto.AuthenticationResult;
 import com.ecommerce.project.auth.dto.ForgotPasswordRequestDTO;
 import com.ecommerce.project.auth.dto.PasswordChangeRequestDTO;
 import com.ecommerce.project.auth.dto.SellerSummaryDTO;
@@ -46,70 +51,7 @@ public class AuthServiceImpl implements AuthService{
     private final RoleRepository roleRepository;
     private final ModelMapper modelMapper;
     private final ApplicationEventPublisher eventPublisher;
-
-    @Override
-    public AuthenticationResult login(LoginRequest loginRequest) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.username(), loginRequest.password())
-        );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        ResponseCookie jwtCookies = jwtUtils.generateJwtCookies(userDetails);
-
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(item -> item.getAuthority())
-                .collect(Collectors.toList());
-        UserInfoResponse response = new UserInfoResponse(userDetails.getId(), userDetails.getEmail(), userDetails.getUsername(), roles, jwtCookies.toString());
-        return new AuthenticationResult(response, jwtCookies);
-    }
-
-    @Override
-    public ResponseEntity<MessageResponse> register(SignupRequest signupRequest) {
-        if(userRepository.existsByUsername(signupRequest.username())) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Error: Username already exist!!"));
-        }
-        if(userRepository.existsByEmail(signupRequest.email())){
-            return ResponseEntity.badRequest().body(new MessageResponse("Error: Email already exist!!"));
-        }
-
-        User user = new User(
-                signupRequest.username(),
-                signupRequest.email(),
-                encoder.encode(signupRequest.password())
-        );
-
-        Set<String> strRoles = signupRequest.role();
-        Set<Role> roles = new HashSet<>();
-
-        if(strRoles==null) {
-            Role userRole = roleRepository.findByRoleName(AppRole.ROLE_USER)
-                    .orElseThrow(() -> new RuntimeException("Error : Role is not Found !!!!!! "));
-            roles.add(userRole);
-        } else{
-            strRoles.forEach(role -> {
-                switch (role) {
-                    case "admin":
-                        Role adminRole = roleRepository.findByRoleName(AppRole.ROLE_ADMIN)
-                                .orElseThrow(() -> new RuntimeException("Error : Role is not Found !!!!!! "));
-                        roles.add(adminRole);
-                        break;
-                    case "seller":
-                        Role sellerRole = roleRepository.findByRoleName(AppRole.ROLE_SELLER)
-                                .orElseThrow(() -> new RuntimeException("Error : Role is not Found !!!!!! "));
-                        roles.add(sellerRole);
-                        break;
-                    default:
-                        Role userRole = roleRepository.findByRoleName(AppRole.ROLE_USER)
-                                .orElseThrow(() -> new RuntimeException("Error : Role is not Found !!!!!! "));
-                        roles.add(userRole);
-                }
-            });
-        }
-        user.setRoles(roles);
-        User savedUser = userRepository.save(user);
-        eventPublisher.publishEvent(new OnUserRegisteredEvent(savedUser, savedUser));
-        return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
-    }
+    private final RefreshTokenService refreshTokenService;
 
     @Override
     public ResponseEntity<Map<String, String>> forgotPassword(ForgotPasswordRequestDTO forgotPasswordRequestDTO) {
@@ -126,14 +68,22 @@ public class AuthServiceImpl implements AuthService{
 
     @Override
     public void saveVerificationTokenForUser(User user, String token){
-        UserVerificationToken userVerificationToken = new UserVerificationToken(token, user);
+        // One token per user (unique user_id): re-sending verification (e.g. on an unverified login)
+        // refreshes the existing row rather than inserting a second one.
+        UserVerificationToken userVerificationToken = userVerificationTokenRepository.findByUser_UserId(user.getUserId())
+                .map(existing -> {
+                    existing.setToken(token);
+                    existing.setExpiryDate(LocalDateTime.now().plusMinutes(AppConstants.VERIFICATION_EXPIRATION_MINUTES));
+                    return existing;
+                })
+                .orElseGet(() -> new UserVerificationToken(token, user));
         userVerificationTokenRepository.save(userVerificationToken);
     }
 
     @Override
     public void changePassword(JwtPrincipal userDetails, PasswordChangeRequestDTO requestPasswordChangeRequestDTO) {
 
-        if(userDetails == null) throw new APIException("Error : User not logged in");
+        if(userDetails == null) throw new AuthenticationCredentialsNotFoundException("User not logged in");
 
         User user = userRepository.findByUsername(userDetails.userName()).orElseThrow(() -> new UsernameNotFoundException("Error : Username not found!!!"));
 
@@ -147,6 +97,9 @@ public class AuthServiceImpl implements AuthService{
 
         user.setPassword(encoder.encode(requestPasswordChangeRequestDTO.newPassword()));
         userRepository.save(user);
+        // Sign out every session, including this one - the client logs in again with the new
+        // password (the frontend's change-password flow does this).
+        refreshTokenService.revokeAllForUser(user.getUserId());
         eventPublisher.publishEvent(new OnPasswordChangedEvent(this, user));
     }
 
@@ -170,16 +123,14 @@ public class AuthServiceImpl implements AuthService{
 
     @Override
     public UserInfoResponse getCurrentUserDetails(Authentication authentication) {
-        JwtPrincipal userDetails = (JwtPrincipal) authentication.getPrincipal();
+        // /api/auth/** is permitAll, so an anonymous caller reaches here - 401, not an NPE/500.
+        if (authentication == null || !(authentication.getPrincipal() instanceof JwtPrincipal userDetails)) {
+            throw new AuthenticationCredentialsNotFoundException("User not logged in");
+        }
         List<String> roles = userDetails.authorities().stream()
                 .map(item -> item.getAuthority())
                 .collect(Collectors.toList());
         return new UserInfoResponse(userDetails.userId(), userDetails.email(), userDetails.userName(), roles);
-    }
-
-    @Override
-    public ResponseCookie logout() {
-        return jwtUtils.getJwtCleanCookies();
     }
 
     @Override

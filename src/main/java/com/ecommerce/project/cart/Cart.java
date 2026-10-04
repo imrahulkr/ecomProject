@@ -41,6 +41,12 @@ public class Cart {
     @Column(nullable = false, length = 8)
     private String currency;
 
+    @Column(name = "applied_coupon_code", length = 64)
+    private String appliedCouponCode;
+
+    @Column(name = "discount_minor_units", nullable = false)
+    private long discountMinorUnits = 0L;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

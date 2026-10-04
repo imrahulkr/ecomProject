@@ -13,6 +13,9 @@ public class PaymentEvent {
     String providerEventId;
     PaymentEventType type;
     String providerPaymentReference;
+    // The id a refund must target - same as providerPaymentReference for Stripe (PaymentIntent),
+    // the captured payment's pay_... id for Razorpay (whose reference is the Razorpay order).
+    String providerPaymentId;
     Long amountMinorUnits;
     String currency;
     Instant occurredAt;

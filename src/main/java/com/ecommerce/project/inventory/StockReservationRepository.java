@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface StockReservationRepository extends JpaRepository<StockReservation, Long> {
 
-    List<StockReservation> findByStatusAndExpiresAtBefore(ReservationStatus status, Instant cutoff);
+    List<StockReservation> findByStatusAndExpiresAtBeforeAndOrderIsNull(ReservationStatus status, Instant cutoff);
 
     List<StockReservation> findByOrder_OrderIdAndStatus(Long orderId, ReservationStatus status);
 

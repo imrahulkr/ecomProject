@@ -5,7 +5,9 @@ spring.datasource.url=jdbc:postgresql://localhost:5432/ecommerce
 spring.datasource.username=postgres
 spring.datasource.password=CHANGE_ME
 
-spring.jpa.hibernate.ddl-auto=update
+# Flyway owns the whole schema (db/migration, starting at V0__legacy_schema). Hibernate only
+# checks the entities match it - add a migration for every table/column change.
+spring.jpa.hibernate.ddl-auto=validate
 spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
 
 # Base64-encoded HMAC signing key - generate with: openssl rand -base64 32
@@ -20,7 +22,8 @@ resend.api-key=CHANGE_ME
 
 app.cookie.secure=false
 
-logging.level.org.springframework=DEBUG
-logging.level.org.hibernate.SQL=DEBUG
-logging.level.org.springframework.security=DEBUG
+# INFO keeps startup/request logs readable; switch a package to DEBUG when diagnosing it.
+logging.level.org.springframework=INFO
+logging.level.org.hibernate.SQL=INFO
+logging.level.org.springframework.security=INFO
 logging.level.com.ecommerce.project=DEBUG

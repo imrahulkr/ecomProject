@@ -43,6 +43,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final PaymentAttemptRepository paymentAttemptRepository;
     private final OrderRepository orderRepository;
     private final StockReservationRepository stockReservationRepository;
+    private final PaymentReconciliationService paymentReconciliationService;
 
     // Not a Spring bean here: this app has no autoconfigured ObjectMapper bean available (it uses
     // spring-boot-starter-webmvc rather than the full starter-web), so AuthEntryPointJwt sets the
@@ -67,7 +68,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         ProviderName providerName = request.provider() != null ? request.provider() : pickHealthiestProvider();
 
-        CheckoutResponse response = attemptPayment(created.order(), providerName);
+        CheckoutResponse response = attemptPaymentSafely(created.order(), providerName);
         idempotencyService.complete(claim.getRecordId(), created.order().getOrderId(), writeJson(response));
         return response;
     }
@@ -82,25 +83,39 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         Order order;
         try {
-            order = orderRepository.findById(orderId)
-                    .filter(o -> o.getEmail().equals(userEmail))
-                    .orElseThrow(() -> new ResourceNotFoundException("order", "orderId", orderId));
-            if (!OrderStatus.PENDING_PAYMENT.name().equals(order.getOrderStatus())) {
-                throw new APIException("Order is not awaiting payment");
-            }
+            loadPendingOrder(orderId, userEmail);
+
+            // An earlier attempt may have been paid without its webhook reaching us yet - settle
+            // that before creating another payment the customer could also complete.
+            paymentReconciliationService.reconcileOrder(orderId);
+            order = loadPendingOrder(orderId, userEmail);
+
             List<?> activeReservations = stockReservationRepository
                     .findByOrder_OrderIdAndStatus(orderId, ReservationStatus.ACTIVE);
             if (activeReservations.isEmpty()) {
                 throw new APIException("The stock reservation for this order has expired - please checkout again");
             }
+
+            // Only one payment per order may stay payable: retire the earlier attempts. If one of
+            // them still completes (the cancel lost a race), reconciliation refunds it.
+            paymentReconciliationService.cancelOpenAttempts(orderId);
         } catch (RuntimeException e) {
             idempotencyService.fail(claim.getRecordId());
             throw e;
         }
 
-        CheckoutResponse response = attemptPayment(order, request.provider());
+        CheckoutResponse response = attemptPaymentSafely(order, request.provider());
         idempotencyService.complete(claim.getRecordId(), orderId, writeJson(response));
         return response;
+    }
+
+    private Order loadPendingOrder(Long orderId, String userEmail) {
+        Order order = orderRepository.findByOrderIdAndEmail(orderId, userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("order", "orderId", orderId));
+        if (!OrderStatus.PENDING_PAYMENT.name().equals(order.getOrderStatus())) {
+            throw new APIException("Order is not awaiting payment");
+        }
+        return order;
     }
 
     private ProviderName pickHealthiestProvider() {
@@ -109,6 +124,26 @@ public class CheckoutServiceImpl implements CheckoutService {
             throw new APIException("No payment providers are configured");
         }
         return ranked.get(0);
+    }
+
+    // The order already exists at this point, so an unexpected error must still complete the
+    // idempotency record (as "payment attempt failed") - left IN_PROGRESS, a client retry with the
+    // same key would later be allowed to run checkout again and create a second order.
+    private CheckoutResponse attemptPaymentSafely(Order order, ProviderName providerName) {
+        try {
+            return attemptPayment(order, providerName);
+        } catch (RuntimeException e) {
+            logger.error("Unexpected error starting payment for order {} via {}", order.getOrderId(), providerName, e);
+            return CheckoutResponse.builder()
+                    .orderId(order.getOrderId())
+                    .orderStatus(order.getOrderStatus())
+                    .provider(providerName)
+                    .amountMinorUnits(order.getAmountMinorUnits())
+                    .currency(order.getCurrency())
+                    .paymentAttemptFailed(true)
+                    .failureReason("Payment could not be started, please try again")
+                    .build();
+        }
     }
 
     // Deliberately outside any DB transaction: this makes a real network call to the payment

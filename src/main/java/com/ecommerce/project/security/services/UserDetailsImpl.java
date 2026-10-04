@@ -88,9 +88,10 @@ public class UserDetailsImpl implements UserDetails {
     }
 
     @Override
+    // Unverified (and otherwise disabled) accounts must not authenticate - the default
+    // implementation returned true unconditionally and ignored this flag.
     public boolean isEnabled() {
-        //return UserDetails.super.isEnabled();
-        return UserDetails.super.isEnabled();
+        return enabled;
     }
 
     @Override

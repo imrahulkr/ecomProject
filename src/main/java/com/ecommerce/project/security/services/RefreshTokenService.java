@@ -69,7 +69,7 @@ public class RefreshTokenService {
                     "all sessions in this chain has been revoked. Please log in again.");
         }
 
-        if(existing.isEspired()){
+        if(existing.isExpired()){
             throw new InvalidRefreshTokenException("Refresh token expired");
         }
 
@@ -99,8 +99,11 @@ public class RefreshTokenService {
 
 
 
+    // Ends every session of a user (all refresh-token families) - used when the password
+    // changes, so a stolen session can't outlive the password it was obtained with. Access
+    // tokens already issued stay valid until they expire (app.jwt.access-token-ttl-minutes).
     @Transactional
-    public void revodeAllForUser(Long userId){
+    public void revokeAllForUser(Long userId){
         refreshTokenRepository.revokeAllByUserId(userId);
     }
 

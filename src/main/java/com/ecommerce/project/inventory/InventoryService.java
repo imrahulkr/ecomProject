@@ -2,6 +2,8 @@ package com.ecommerce.project.inventory;
 
 import com.ecommerce.project.cart.Cart;
 
+import java.util.List;
+
 public interface InventoryService {
 
     /**
@@ -37,8 +39,15 @@ public interface InventoryService {
     void releaseReservationsForOrder(Long orderId);
 
     /**
-     * Scheduled entry point: releases every reservation whose hold has expired without payment
-     * completing, and notifies each affected cart's owner once.
+     * Same as releaseReservationsForOrder, but records the reservations as EXPIRED (the hold ran
+     * out rather than the order being cancelled) and returns the ones it actually ended.
+     */
+    List<StockReservation> expireReservationsForOrder(Long orderId);
+
+    /**
+     * Scheduled entry point: releases every reservation with no order attached whose hold has
+     * expired, and notifies each affected cart's owner once. Reservations that belong to an order
+     * are expired together with the order, via expireReservationsForOrder.
      */
     void expireDueReservations();
 }

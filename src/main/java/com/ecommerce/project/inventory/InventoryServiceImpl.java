@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,21 +84,38 @@ public class InventoryServiceImpl implements InventoryService {
     @Override
     @Transactional
     public void releaseReservationsForOrder(Long orderId) {
+        endActiveReservationsForOrder(orderId, ReservationStatus.RELEASED);
+    }
+
+    @Override
+    @Transactional
+    public List<StockReservation> expireReservationsForOrder(Long orderId) {
+        return endActiveReservationsForOrder(orderId, ReservationStatus.EXPIRED);
+    }
+
+    private List<StockReservation> endActiveReservationsForOrder(Long orderId, ReservationStatus endStatus) {
         List<StockReservation> reservations = stockReservationRepository
                 .findByOrder_OrderIdAndStatus(orderId, ReservationStatus.ACTIVE);
+        List<StockReservation> ended = new ArrayList<>();
         for (StockReservation reservation : reservations) {
-            int updated = stockReservationRepository.transitionIfActive(reservation.getId(), ReservationStatus.RELEASED);
+            int updated = stockReservationRepository.transitionIfActive(reservation.getId(), endStatus);
             if (updated == 0) {
                 continue;
             }
             productRepository.incrementStock(reservation.getProduct().getProductId(), reservation.getQuantity());
+            ended.add(reservation);
         }
+        return ended;
     }
 
+    // Only holds with no order attached. A hold that belongs to an order expires together with
+    // that order (checkout.PaymentReconciliationService.expireUnpaidOrders), so the order is
+    // cancelled and its pending payment stopped in the same step instead of the stock being
+    // handed back while the customer can still pay for it.
     @Override
     public void expireDueReservations() {
         List<StockReservation> due = stockReservationRepository
-                .findByStatusAndExpiresAtBefore(ReservationStatus.ACTIVE, Instant.now());
+                .findByStatusAndExpiresAtBeforeAndOrderIsNull(ReservationStatus.ACTIVE, Instant.now());
         if (due.isEmpty()) {
             return;
         }

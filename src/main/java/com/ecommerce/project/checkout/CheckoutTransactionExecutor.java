@@ -6,6 +6,8 @@ import com.ecommerce.project.cart.Cart;
 import com.ecommerce.project.cart.CartItem;
 import com.ecommerce.project.cart.CartItemRepository;
 import com.ecommerce.project.cart.CartRepository;
+import com.ecommerce.project.coupon.AppliedCouponDiscount;
+import com.ecommerce.project.coupon.CouponService;
 import com.ecommerce.project.exceptions.APIException;
 import com.ecommerce.project.exceptions.ResourceNotFoundException;
 import com.ecommerce.project.inventory.InventoryService;
@@ -38,6 +40,8 @@ class CheckoutTransactionExecutor {
     private final InventoryService inventoryService;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
+    private final CouponService couponService;
+    private final ShippingCalculator shippingCalculator;
 
     // Single transaction: every reservation's conditional stock UPDATE and the Order/OrderItem
     // inserts either all commit together or all roll back together - never a reservation left
@@ -49,6 +53,18 @@ class CheckoutTransactionExecutor {
             throw new APIException("Cart is empty");
         }
 
+        // Charge today's price, not the one captured when each item was added: product edits
+        // already reprice open carts, this catches anything that slipped in between.
+        for (CartItem item : cart.getCartItems()) {
+            if (!item.getProduct().isActive()) {
+                throw new APIException(item.getProduct().getProductName() + " is no longer available - please remove it from your cart");
+            }
+            if (item.getProductPriceMinorUnits() != item.getProduct().getSpecialPriceMinorUnits()
+                    || item.getDiscount() != item.getProduct().getDiscount()) {
+                item.setProductPriceMinorUnits(item.getProduct().getSpecialPriceMinorUnits());
+                item.setDiscount(item.getProduct().getDiscount());
+            }
+        }
         cart.setTotalPriceMinorUnits(cartItemRepository.calculateTotalPriceMinorUnits(cart.getCartId()));
         cartRepository.save(cart);
 
@@ -60,14 +76,29 @@ class CheckoutTransactionExecutor {
             throw new APIException("Address does not belong to the current user");
         }
 
+        // Revalidate before trusting the cart's stored discount - re-checks expiry/min-order/
+        // redemption limits against current state rather than reusing whatever was true when the
+        // coupon was applied to the cart. Throws if it's no longer valid, forcing the client back
+        // to the cart rather than silently checking out at a different price than shown.
+        AppliedCouponDiscount appliedDiscount = couponService.revalidateForCheckout(cart);
+        long discountMinorUnits = appliedDiscount != null ? appliedDiscount.discountMinorUnits() : 0L;
+
         Order order = new Order();
         order.setEmail(userEmail);
         order.setAddress(address);
         order.setOrderDate(LocalDate.now());
         order.setOrderStatus(OrderStatus.PENDING_PAYMENT.name());
-        order.setAmountMinorUnits(cart.getTotalPriceMinorUnits());
+        long shippingMinorUnits = shippingCalculator.shippingFor(cart.getTotalPriceMinorUnits() - discountMinorUnits, true);
+        order.setShippingMinorUnits(shippingMinorUnits);
+        order.setAmountMinorUnits(cart.getTotalPriceMinorUnits() - discountMinorUnits + shippingMinorUnits);
         order.setCurrency(cart.getCurrency());
+        order.setCouponCode(appliedDiscount != null ? cart.getAppliedCouponCode() : null);
+        order.setDiscountMinorUnits(discountMinorUnits);
         Order savedOrder = orderRepository.save(order);
+
+        if (appliedDiscount != null) {
+            couponService.recordRedemption(appliedDiscount.coupon(), cart.getUser(), savedOrder, discountMinorUnits);
+        }
 
         List<OrderItem> orderItems = new ArrayList<>();
         for (CartItem cartItem : cart.getCartItems()) {

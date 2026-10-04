@@ -6,6 +6,7 @@ import com.ecommerce.project.auth.RoleRepository;
 import com.ecommerce.project.auth.User;
 import com.ecommerce.project.auth.UserRepository;
 import com.ecommerce.project.notification.email.event.OnUserRegisteredEvent;
+import com.ecommerce.project.security.OAuthAccountRepository;
 import com.ecommerce.project.security.dto.AuthResponse;
 import com.ecommerce.project.security.dto.LoginRequest;
 import com.ecommerce.project.security.dto.MessageResponse;
@@ -26,6 +27,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -39,8 +41,9 @@ public class SecureAuthServiceImpl implements SecureAuthService{
     private final AuthenticationManager authenticationManager;
     private final RoleRepository roleRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final OAuthAccountRepository oAuthAccountRepository;
 
-    public SecureAuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtils jwtUtils, RefreshTokenService refreshTokenService, AuthenticationManager authenticationManager, RoleRepository roleRepository, ApplicationEventPublisher eventPublisher) {
+    public SecureAuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtils jwtUtils, RefreshTokenService refreshTokenService, AuthenticationManager authenticationManager, RoleRepository roleRepository, ApplicationEventPublisher eventPublisher, OAuthAccountRepository oAuthAccountRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
@@ -48,6 +51,7 @@ public class SecureAuthServiceImpl implements SecureAuthService{
         this.authenticationManager = authenticationManager;
         this.roleRepository = roleRepository;
         this.eventPublisher = eventPublisher;
+        this.oAuthAccountRepository = oAuthAccountRepository;
     }
 
     /*
@@ -102,17 +106,22 @@ public class SecureAuthServiceImpl implements SecureAuthService{
         if(!user.hasPassword()){
             throw new BadCredentialsException("This account uses social login. Please log in with the provider you originally used");
         }
-//        if(!passwordEncoder.matches(request.password(), user.getPassword())){
-//            throw new BadCredentialsException("Invalid email or password.");
-//        }
- 
+
+        // Unverified accounts: only someone who knows the password learns the account exists and
+        // unverified, or can trigger a new verification email. (Checked by hand because
+        // DaoAuthenticationProvider rejects a disabled user before it ever checks the password.)
         if(!user.isEnabled()){
+            if(!passwordEncoder.matches(request.password(), user.getPassword())){
+                throw new BadCredentialsException("Invalid email or password.");
+            }
             eventPublisher.publishEvent(new OnUserRegisteredEvent(this, user));
-            throw new BadCredentialsException("Account is not verified. Please verify your email before logging in.");
+            throw new BadCredentialsException("Account is not verified. We've sent a new verification email.");
         }
 
-        Authentication authResult = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.username(), request.password())
+        // Authenticate the account resolved from the email, never a client-supplied username -
+        // otherwise a valid username/password for one account would issue tokens for another email.
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(user.getUsername(), request.password())
         );
 
         return issueTokenFor(user);
@@ -127,6 +136,13 @@ public class SecureAuthServiceImpl implements SecureAuthService{
     @Override
     public AuthResponse toAuthResponse(IssuedTokens issuedTokens){
         User user = issuedTokens.user();
+        // Query directly rather than navigating user.getOAuthAccounts() (a lazy @OneToMany) - this
+        // method's callers may hand it a User fetched in an already-closed transaction (e.g.
+        // RefreshTokenService.rotate), so it can't rely on the caller having pre-touched the
+        // collection. Same pattern as AccountLinkController.
+        List<String> providers = oAuthAccountRepository.findByUser(user).stream()
+                .map(a -> a.getProvider())
+                .toList();
         return new AuthResponse(
           issuedTokens.accessToken(),
                 jwtUtils.getAccessTokenTtlSeconds(),
@@ -135,7 +151,7 @@ public class SecureAuthServiceImpl implements SecureAuthService{
                         user.getEmail(),
                         user.getName(),
                         user.hasPassword(),
-                        user.getOAuthAccounts().stream().map(a -> a.getProvider()).toList()
+                        providers
                 )
 
         );

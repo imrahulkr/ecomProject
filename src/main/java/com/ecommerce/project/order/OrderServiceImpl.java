@@ -1,8 +1,8 @@
 package com.ecommerce.project.order;
 
+import org.springframework.beans.factory.annotation.Value;
 import com.ecommerce.project.exceptions.APIException;
 import com.ecommerce.project.exceptions.ResourceNotFoundException;
-import com.ecommerce.project.inventory.InventoryService;
 import com.ecommerce.project.notification.email.event.OnItemDeliveredEvent;
 import com.ecommerce.project.notification.email.event.OnItemShippedEvent;
 import com.ecommerce.project.util.AuthUtil;
@@ -34,7 +34,9 @@ public class OrderServiceImpl implements OrderService {
     private final ModelMapper modelMapper;
     private final AuthUtil authUtil;
     private final ApplicationEventPublisher eventPublisher;
-    private final InventoryService inventoryService;
+
+    @Value("${app.returns.window-days}")
+    private int returnWindowDays;
 
     // @Transactional on every method here: Order.items is a lazy @OneToMany, and with
     // spring.jpa.open-in-view=false (see application.properties) there's no session left open
@@ -46,21 +48,6 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findByOrderIdAndEmail(orderId, emailId)
                 .orElseThrow(() -> new ResourceNotFoundException("order", "orderId", orderId));
         return modelMapper.map(order, OrderDTO.class);
-    }
-
-    @Override
-    @Transactional
-    public OrderDTO cancelOrderForUser(String emailId, Long orderId) {
-        Order order = orderRepository.findByOrderIdAndEmail(orderId, emailId)
-                .orElseThrow(() -> new ResourceNotFoundException("order", "orderId", orderId));
-        if (!OrderStatus.PENDING_PAYMENT.name().equals(order.getOrderStatus())) {
-            throw new APIException("Only orders awaiting payment can be cancelled");
-        }
-
-        order.setOrderStatus(OrderStatus.CANCELLED.name());
-        inventoryService.releaseReservationsForOrder(orderId);
-        Order saved = orderRepository.save(order);
-        return modelMapper.map(saved, OrderDTO.class);
     }
 
     // Customer-scoped order history - findByEmail restricts the query itself rather than
@@ -88,10 +75,21 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
+    public OrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder, String status) {
         Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
-        Page<Order> orderpage = orderRepository.findAll(pageDetails);
+        Page<Order> orderpage;
+        if (status == null || status.isBlank()) {
+            orderpage = orderRepository.findAll(pageDetails);
+        } else {
+            OrderStatus orderStatus;
+            try {
+                orderStatus = OrderStatus.valueOf(status.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new APIException("Unknown order status: " + status);
+            }
+            orderpage = orderRepository.findByOrderStatus(orderStatus.name(), pageDetails);
+        }
         List<Order> orders = orderpage.getContent();
         List<OrderDTO> orderDTOS = orders.isEmpty() ? Collections.emptyList() : orders.stream()
                 .map(order -> modelMapper.map(order, OrderDTO.class))
@@ -179,6 +177,25 @@ public class OrderServiceImpl implements OrderService {
         return applyFulfillmentTransition(orderItem, update);
     }
 
+    // Customer-initiated: DELIVERED -> RETURN_REQUESTED, within the return window.
+    @Override
+    @Transactional
+    public OrderItemDTO requestReturn(String emailId, Long orderId, Long orderItemId, String reason) {
+        OrderItem item = orderItemRepository.findById(orderItemId)
+                .filter(oi -> oi.getOrder().getOrderId().equals(orderId) && oi.getOrder().getEmail().equals(emailId))
+                .orElseThrow(() -> new ResourceNotFoundException("orderItem", "orderItemId", orderItemId));
+        if (item.getFulfillmentStatus() != FulfillmentStatus.DELIVERED) {
+            throw new APIException("Only delivered items can be returned");
+        }
+        if (item.getDeliveredAt() == null || item.getDeliveredAt().isBefore(LocalDateTime.now().minusDays(returnWindowDays))) {
+            throw new APIException("The " + returnWindowDays + "-day return window for this item has closed");
+        }
+        item.setFulfillmentStatus(FulfillmentStatus.RETURN_REQUESTED);
+        item.setReturnReason(reason.trim());
+        item.setReturnRequestedAt(LocalDateTime.now());
+        return modelMapper.map(orderItemRepository.save(item), OrderItemDTO.class);
+    }
+
     // State machine: PENDING -> SHIPPED -> DELIVERED, or PENDING -> CANCELLED. Every other
     // transition (skipping a state, going backwards, re-issuing the same state) is rejected.
     private OrderItemDTO applyFulfillmentTransition(OrderItem orderItem, FulfillmentUpdateDTO update) {
@@ -214,10 +231,16 @@ public class OrderServiceImpl implements OrderService {
             return modelMapper.map(saved, OrderItemDTO.class);
         }
 
-        if (current == FulfillmentStatus.PENDING && target == FulfillmentStatus.CANCELLED) {
-            orderItem.setFulfillmentStatus(FulfillmentStatus.CANCELLED);
+        if (current == FulfillmentStatus.RETURN_REQUESTED && target == FulfillmentStatus.RETURN_REJECTED) {
+            orderItem.setFulfillmentStatus(FulfillmentStatus.RETURN_REJECTED);
             OrderItem saved = orderItemRepository.save(orderItem);
             return modelMapper.map(saved, OrderItemDTO.class);
+        }
+
+        // CANCELLED and RETURNED refund the customer - the controllers route those through
+        // refund.RefundService, which must make a provider call outside this transaction.
+        if (target == FulfillmentStatus.CANCELLED || target == FulfillmentStatus.RETURNED) {
+            throw new IllegalStateException("Refunding transitions are handled by RefundService");
         }
 
         throw new APIException("Cannot transition fulfillment status from " + current + " to " + target);

@@ -20,6 +20,9 @@ public class OrderDTO {
     private long amountMinorUnits;
     private String currency;
     private String orderStatus;
+    private String couponCode;
+    private long discountMinorUnits;
+    private long shippingMinorUnits;
     private PaymentDTO payment;
     private Long addressId;
     private Instant createdAt;

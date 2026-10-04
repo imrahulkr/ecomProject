@@ -1,5 +1,6 @@
 package com.ecommerce.project.order;
 
+import com.ecommerce.project.refund.RefundStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -59,6 +60,20 @@ public class OrderItem {
     private String carrier;
     private LocalDateTime shippedAt;
     private LocalDateTime deliveredAt;
+
+    @Column(name = "return_reason", columnDefinition = "TEXT")
+    private String returnReason;
+
+    @Column(name = "return_requested_at")
+    private LocalDateTime returnRequestedAt;
+
+    // Mirrors refund.Refund for display: null until the item is cancelled/returned.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "refund_status", length = 16)
+    private RefundStatus refundStatus;
+
+    @Column(name = "refunded_minor_units", nullable = false)
+    private long refundedMinorUnits;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

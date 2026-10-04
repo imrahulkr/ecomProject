@@ -5,15 +5,26 @@ import com.ecommerce.project.payload.APIResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.data.core.PropertyReferenceException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -79,8 +90,83 @@ public class MyGlobalExceptionHandler {
         return build(HttpStatus.PAYLOAD_TOO_LARGE, "PAYLOAD_TOO_LARGE", "Uploaded file is too large", request, null);
     }
 
+    // A missing static file (e.g. /images/<deleted>.jpg) - without this the catch-all below turns it into a 500.
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<APIResponse> myNoResourceFoundException(NoResourceFoundException e, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, "NOT_FOUND", "Resource not found", request, null);
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<APIResponse> myTooManyRequestsException(TooManyRequestsException e, HttpServletRequest request) {
+        ResponseEntity<APIResponse> response = build(HttpStatus.TOO_MANY_REQUESTS, "TOO_MANY_REQUESTS", e.getMessage(), request, null);
+        return ResponseEntity.status(response.getStatusCode())
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfterSeconds()))
+                .body(response.getBody());
+    }
+
+    // ---- Client mistakes that used to fall through to the 500 catch-all ----
+
+    // Missing or unparseable JSON body.
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<APIResponse> myHttpMessageNotReadableException(HttpMessageNotReadableException e, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST", "Request body is missing or malformed", request, null);
+    }
+
+    // e.g. ?pageNumber=abc or /orders/xyz
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<APIResponse> myMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "Invalid value for parameter '" + e.getName() + "'", request, null);
+    }
+
+    // e.g. ?sortBy=doesNotExist - Spring Data rejects the property, sometimes wrapped by the
+    // repository exception translator.
+    @ExceptionHandler({PropertyReferenceException.class, InvalidDataAccessApiUsageException.class})
+    public ResponseEntity<APIResponse> myPropertyReferenceException(RuntimeException e, HttpServletRequest request) {
+        if (e instanceof PropertyReferenceException || e.getCause() instanceof PropertyReferenceException) {
+            PropertyReferenceException pre = e instanceof PropertyReferenceException p ? p : (PropertyReferenceException) e.getCause();
+            return build(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "Unknown sort field '" + pre.getPropertyName() + "'", request, null);
+        }
+        return myGenericException(e, request);
+    }
+
+    // @Positive/@Min etc. on @PathVariable/@RequestParam of @Validated controllers.
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<APIResponse> myConstraintViolationException(ConstraintViolationException e, HttpServletRequest request) {
+        Map<String, String> violations = new HashMap<>();
+        e.getConstraintViolations().forEach(v -> violations.put(v.getPropertyPath().toString(), v.getMessage()));
+        return build(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Validation failed", request, violations);
+    }
+
+    // Unique/foreign-key violations (e.g. deleting something still referenced). The constraint
+    // details are logged, never returned - they leak schema.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<APIResponse> myDataIntegrityViolationException(DataIntegrityViolationException e, HttpServletRequest request) {
+        logger.warn("Data integrity violation on {}: {}", request.getRequestURI(), e.getMostSpecificCause().getMessage());
+        return build(HttpStatus.CONFLICT, "CONFLICT", "The request conflicts with existing data", request, null);
+    }
+
+    // Thrown from inside controllers/services (the filter chain's own 401/403 are handled by
+    // AuthEntryPointJwt/RestAccessDeniedHandler and never reach here).
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<APIResponse> myAccessDeniedException(AccessDeniedException e, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, "FORBIDDEN", "You do not have permission to perform this action", request, null);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<APIResponse> myAuthenticationException(AuthenticationException e, HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Authentication is required", request, null);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<APIResponse> myGenericException(Exception e, HttpServletRequest request) {
+        // Spring MVC's own exceptions (405 method not allowed, 415 media type, missing
+        // parameter/header, method-validation failures, ...) carry their proper status - keep it
+        // instead of turning a client error into a 500.
+        if (e instanceof ErrorResponse errorResponse && errorResponse.getStatusCode().is4xxClientError()) {
+            HttpStatus status = HttpStatus.valueOf(errorResponse.getStatusCode().value());
+            String detail = errorResponse.getBody().getDetail();
+            return build(status, status.name(), detail != null ? detail : status.getReasonPhrase(), request, null);
+        }
         logger.error("Unhandled exception", e);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",
                 "An unexpected error occurred. Please try again later.", request, null);

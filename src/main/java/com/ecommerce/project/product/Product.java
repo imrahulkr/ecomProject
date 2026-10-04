@@ -33,7 +33,17 @@ public class Product {
     private String productName;
     private String description;
     private String image;
+    // Stock is never written through an entity save: reservations change it with atomic
+    // conditional UPDATEs (ProductRepository.decrementStockIfAvailable/incrementStock/adjustStock),
+    // and a plain save of a product loaded earlier would overwrite those with a stale value.
+    // Still insertable, so a new product starts with its initial stock.
+    @Column(updatable = false)
     private Integer quantity;
+
+    // Soft delete: a deleted product disappears from the catalog, carts and seller/admin lists,
+    // but its row stays so past orders, reviews and stock reservations keep pointing at it.
+    @Column(nullable = false)
+    private boolean active = true;
     @Column(name = "price_minor_units", nullable = false)
     private long priceMinorUnits;
     private double discount;

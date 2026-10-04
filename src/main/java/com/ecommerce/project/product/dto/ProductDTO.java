@@ -1,5 +1,6 @@
 package com.ecommerce.project.product.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -29,6 +30,12 @@ public class ProductDTO {
     @NotNull
     @Min(value = 0, message = "Quantity cannot be negative")
     private Integer quantity;
+    // Update requests only: the stock value the edit form was loaded with. The server applies
+    // (quantity - expectedQuantity) atomically, so checkouts that reserved/released stock in the
+    // meantime are preserved. Omitted = treat quantity as an absolute value (older clients).
+    @Min(value = 0, message = "Expected quantity cannot be negative")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private Integer expectedQuantity;
 
     @NotNull
     @Positive(message = "Price must be greater than 0")

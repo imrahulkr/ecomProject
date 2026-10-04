@@ -1,0 +1,13 @@
+# Keep the build context small - and keep local secrets out of the image: the real
+# application-<profile>.properties files hold DB passwords and API keys.
+.git
+.idea
+.vscode
+.claude
+target
+frontend
+frontend-old
+image
+db
+src/main/resources/application-test.properties
+src/main/resources/application-prod.properties

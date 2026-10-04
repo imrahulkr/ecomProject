@@ -10,6 +10,10 @@ import com.ecommerce.project.security.services.RefreshTokenService;
 import com.ecommerce.project.security.services.SecureAuthService;
 import com.ecommerce.project.security.services.SecureAuthServiceImpl;
 import com.ecommerce.project.auth.AuthService;
+import com.ecommerce.project.service.RateLimiterService;
+import com.ecommerce.project.service.RateLimiterService.Policy;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,15 +37,18 @@ public class SecureAuthController {
     private final RefreshTokenService refreshTokenService;
     private final JwtUtils jwtUtils;
     private final OneTimeExchangeCodeStore exchangeCodeStore;
+    private final RateLimiterService rateLimiterService;
 
     @Value("${app.cookie.secure:true}")
     private boolean cookieSecure;
 
-    public SecureAuthController(SecureAuthService secureAuthService, RefreshTokenService refreshTokenService, JwtUtils jwtUtils, OneTimeExchangeCodeStore store) {
+    public SecureAuthController(SecureAuthService secureAuthService, RefreshTokenService refreshTokenService, JwtUtils jwtUtils,
+                                OneTimeExchangeCodeStore store, RateLimiterService rateLimiterService) {
         this.secureAuthService = secureAuthService;
         this.refreshTokenService = refreshTokenService;
         this.jwtUtils = jwtUtils;
         this.exchangeCodeStore = store;
+        this.rateLimiterService = rateLimiterService;
     }
 
     /*
@@ -57,7 +64,9 @@ public class SecureAuthController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest request) {
+    public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest request, HttpServletRequest httpRequest) {
+        rateLimiterService.consumeOrThrow(Policy.SIGNUP_IP, httpRequest.getRemoteAddr(),
+                "Too many sign-up attempts. Please try again later.");
         return secureAuthService.signup(request);
     }
 
@@ -67,14 +76,40 @@ public class SecureAuthController {
     //     return withRefreshCookie(tokens);
     // }
 
+    // Two limits: attempts per IP (slows credential stuffing across many accounts) and failed
+    // attempts per account (stops guessing one account's password from many IPs). A locked
+    // account is rejected before the password is even checked, so guesses during the lockout
+    // can't succeed; a successful login clears the account's failure count.
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        SecureAuthServiceImpl.IssuedTokens tokens = secureAuthService.login(request);
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        rateLimiterService.consumeOrThrow(Policy.LOGIN_IP, httpRequest.getRemoteAddr(),
+                "Too many login attempts. Please try again later.");
+        rateLimiterService.requireAvailable(Policy.LOGIN_FAILURES_PER_ACCOUNT, request.email(),
+                "Too many failed login attempts for this account. Please try again later or reset your password.");
+        SecureAuthServiceImpl.IssuedTokens tokens;
+        try {
+            tokens = secureAuthService.login(request);
+        } catch (BadCredentialsException e) {
+            rateLimiterService.record(Policy.LOGIN_FAILURES_PER_ACCOUNT, request.email());
+            throw e;
+        }
+        rateLimiterService.reset(Policy.LOGIN_FAILURES_PER_ACCOUNT, request.email());
         return withRefreshCookie(tokens);
+    }
+
+    // refresh/logout authenticate with the refresh cookie alone, so a cross-site form could
+    // trigger them (CSRF protection is off for the JWT API). Requiring a custom header closes
+    // that: browsers only send one cross-origin after a CORS preflight, which only the allowed
+    // frontend origins pass.
+    private static void requireXhrHeader(HttpServletRequest request) {
+        if (!"XMLHttpRequest".equals(request.getHeader("X-Requested-With"))) {
+            throw new AccessDeniedException("Missing X-Requested-With header");
+        }
     }
 
     @PostMapping("/refresh_secure")
     public ResponseEntity<AuthResponse> refresh(HttpServletRequest request) {
+        requireXhrHeader(request);
         String rawRefreshToken = extractRefreshCookie(request);
         var rotation = refreshTokenService.rotate(rawRefreshToken);
 
@@ -87,6 +122,7 @@ public class SecureAuthController {
 
     @PostMapping("/logout_secure")
     public ResponseEntity<Void> logout(HttpServletRequest request) {
+        requireXhrHeader(request);
         // Best-effort: revoke the presented refresh token's whole family.
         try{
             String rawRefreshToken = extractRefreshCookie(request);

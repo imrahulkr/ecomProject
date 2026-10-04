@@ -6,6 +6,9 @@ package com.ecommerce.project.order;
 public enum OrderStatus {
     PENDING_PAYMENT,
     PAID,
+    // Not written by current code: a failed payment leaves the order PENDING_PAYMENT so the
+    // customer can retry until the stock hold expires, and expiry moves it to CANCELLED. Kept
+    // because existing rows/queries (coupon redemption counts) may still reference it.
     PAYMENT_FAILED,
     CANCELLED
 }

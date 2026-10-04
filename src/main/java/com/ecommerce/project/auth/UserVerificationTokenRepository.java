@@ -10,4 +10,6 @@ import com.ecommerce.project.auth.UserVerificationTokenRepository;
 @Repository
 public interface UserVerificationTokenRepository extends JpaRepository<UserVerificationToken, Long> {
     Optional<UserVerificationToken> findByToken(String token);
+
+    Optional<UserVerificationToken> findByUser_UserId(Long userId);
 }

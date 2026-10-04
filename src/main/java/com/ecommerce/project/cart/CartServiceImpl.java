@@ -1,5 +1,6 @@
 package com.ecommerce.project.cart;
 
+import com.ecommerce.project.checkout.ShippingCalculator;
 
 import com.ecommerce.project.exceptions.APIException;
 import com.ecommerce.project.exceptions.ResourceNotFoundException;
@@ -30,6 +31,7 @@ public class CartServiceImpl implements CartService {
     private final ProductRepository productRepository;
     private final CartItemRepository cartItemRepository;
     private final ModelMapper modelMapper;
+    private final ShippingCalculator shippingCalculator;
 
     @Value("${app.currency}")
     private String currency;
@@ -43,7 +45,7 @@ public class CartServiceImpl implements CartService {
         // Find Existing Cart or Create new for the logged in user
         Cart cart = createCart();
         // Retrive priduct details (using productId);
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByProductIdAndActiveTrue(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product ", "productId", productId));
         // Perform Validations (like stock exists or not)
         CartItem cartItem = cartItemRepository.findCartItemByProductIdAndCartId(cart.getCartId(), productId);
@@ -69,6 +71,7 @@ public class CartServiceImpl implements CartService {
 
         // return updated cart Info
         CartDTO cartDTO = modelMapper.map(cart, CartDTO.class);
+        applyTotals(cartDTO, cart);
         List<CartItem> cartItems = cart.getCartItems();
         Stream<ProductDTO> productDTOStream = cartItems.stream().map(item -> {
             ProductDTO map = modelMapper.map(item.getProduct(), ProductDTO.class);
@@ -87,6 +90,7 @@ public class CartServiceImpl implements CartService {
             throw new ResourceNotFoundException("Cart ", "cartId", cartId);
         }
         CartDTO cartDTO = modelMapper.map(cart, CartDTO.class);
+        applyTotals(cartDTO, cart);
         List<ProductDTO> productDTOs = cart.getCartItems().stream().map(product -> {
             ProductDTO productDTO = modelMapper.map(product.getProduct(), ProductDTO.class);
             productDTO.setQuantity(product.getQuantity());
@@ -110,7 +114,7 @@ public class CartServiceImpl implements CartService {
         Long cartId = userCart.getCartId();
         Cart cart = cartRepository.findById(cartId).orElseThrow(() -> new ResourceNotFoundException("Cart ", "cartId", cartId));
 
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByProductIdAndActiveTrue(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product ", "productId", productId));
 
         CartItem currCartItem = cartItemRepository.findCartItemByProductIdAndCartId(cart.getCartId(), productId);
@@ -136,6 +140,7 @@ public class CartServiceImpl implements CartService {
 
         // return updated cart Info
         CartDTO cartDTO = modelMapper.map(cart, CartDTO.class);
+        applyTotals(cartDTO, cart);
         List<CartItem> cartItems = cart.getCartItems();
         Stream<ProductDTO> productDTOStream = cartItems.stream().map(item -> {
             ProductDTO map = modelMapper.map(item.getProduct(), ProductDTO.class);
@@ -149,12 +154,21 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public String deleteProductFromCart(Long cartId, Long productId) {
-        Cart cart = cartRepository.findById(cartId).orElseThrow(() -> new ResourceNotFoundException("Cart ", "cartId", cartId));
-        CartItem cartItem = cartItemRepository.findCartItemByProductIdAndCartId(cartId, productId);
+        Cart cart = cartRepository.findCartByEmailAndCartId(authUtil.loggedInEmail(), cartId);
+        if (cart == null) {
+            throw new ResourceNotFoundException("Cart ", "cartId", cartId);
+        }
+        return removeProductFromCart(cart, productId);
+    }
+
+    @Override
+    @Transactional
+    public String removeProductFromCart(Cart cart, Long productId) {
+        CartItem cartItem = cartItemRepository.findCartItemByProductIdAndCartId(cart.getCartId(), productId);
         if(cartItem == null) {
             throw new ResourceNotFoundException("Product ", "productId", productId);
         }
-        cartItemRepository.deleteCartItemByProductIdAndCartId(cartId, productId);
+        cartItemRepository.deleteCartItemByProductIdAndCartId(cart.getCartId(), productId);
         refreshCartTotal(cart);
         cartRepository.save(cart);
         return "Product : " + cartItem.getProduct().getProductName() + " has been deleted";
@@ -190,7 +204,7 @@ public class CartServiceImpl implements CartService {
             }
 
             // Find the product by ID
-            Product product = productRepository.findById(productId)
+            Product product = productRepository.findByProductIdAndActiveTrue(productId)
                     .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
 
             if (quantity == null || quantity < 1 || quantity > product.getQuantity()) {
@@ -214,6 +228,21 @@ public class CartServiceImpl implements CartService {
         return "Cart created/updated with the new items successfully";
     }
 
+    @Override
+    @Transactional
+    public String clearCart() {
+        Cart cart = cartRepository.findCartByEmail(authUtil.loggedInEmail());
+        if (cart == null) {
+            throw new ResourceNotFoundException("Cart", "email", authUtil.loggedInEmail());
+        }
+        cartItemRepository.deleteAllByCartId(cart.getCartId());
+        cart.setTotalPriceMinorUnits(0L);
+        cart.setAppliedCouponCode(null);
+        cart.setDiscountMinorUnits(0L);
+        cartRepository.save(cart);
+        return "Cart has been cleared";
+    }
+
     private Cart createCart() {
         Cart userCart = cartRepository.findCartByEmail(authUtil.loggedInEmail());
         if (userCart != null) return userCart;
@@ -234,6 +263,7 @@ public class CartServiceImpl implements CartService {
         if (userCart == null) return Collections.emptyList();
 
         CartDTO cartDTO = modelMapper.map(userCart, CartDTO.class);
+        applyTotals(cartDTO, userCart);
 
         List<ProductDTO> productDTOs = userCart.getCartItems().stream().map(cartItem -> {
             ProductDTO productDTO = modelMapper.map(cartItem.getProduct(), ProductDTO.class);
@@ -242,5 +272,14 @@ public class CartServiceImpl implements CartService {
         }).toList();
         cartDTO.setProducts(productDTOs);
         return List.of(cartDTO);
+    }
+
+    // Shipping and the payable total shown in the cart - exactly what checkout will charge
+    // (CheckoutTransactionExecutor uses the same ShippingCalculator).
+    private void applyTotals(CartDTO cartDTO, Cart cart) {
+        long afterDiscount = cart.getTotalPriceMinorUnits() - cart.getDiscountMinorUnits();
+        long shipping = shippingCalculator.shippingFor(afterDiscount, !cart.getCartItems().isEmpty());
+        cartDTO.setShippingMinorUnits(shipping);
+        cartDTO.setFinalPriceMinorUnits(afterDiscount + shipping);
     }
 }

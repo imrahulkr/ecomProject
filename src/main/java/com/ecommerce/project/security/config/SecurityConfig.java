@@ -54,8 +54,10 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors( cors -> cors.configurationSource(corsConfigurationSource))
-            .csrf(csrf -> csrf.disable()) //JWT is Authorization header is not CSRF-vulnerable;
-                                                    // If using cookies for anything else, re-enable + protect that path
+            // CSRF tokens are off: API calls authenticate with the Authorization header, which a
+            // cross-site page can't send. The two cookie-authenticated endpoints (refresh/logout)
+            // require an X-Requested-With header instead - see SecureAuthController.
+            .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
@@ -65,7 +67,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/api/payments/webhooks/**").permitAll()
                         .requestMatchers("/swagger-ui/**").permitAll()
-                        .requestMatchers("/api/test/**").permitAll()
+                        .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/images/**", "/oauth2/**", "/login/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()
@@ -83,21 +85,11 @@ public class SecurityConfig {
     }
 
 
-    /*
-    * ======================================================================================
-    * */
-
-//    @Bean
-//    public AuthTokenFilter authenticationJwtTokenFilter() {
-//        return new AuthTokenFilter();
-//    }
-//
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
 
-//        authProvider.setUserDetailsService(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
 
         return authProvider;
@@ -109,19 +101,10 @@ public class SecurityConfig {
     }
 
 
-//    @Bean
-//    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
-//        return authConfig.getAuthenticationManager();
-//    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-//
-//    @Bean
-//    public PasswordEncoder passwordEncoder() {
-//        return new BCryptPasswordEncoder(12);
-//    }
 
 }

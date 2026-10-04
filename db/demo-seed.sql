@@ -2,8 +2,8 @@
 -- NOT a Flyway migration on purpose (lives outside src/main/resources/db/migration) - this is
 -- throwaway demo content, not schema-required data, so it must never auto-run against prod.
 --
--- Prerequisite: start the app once against the target DB so Hibernate (ddl-auto=update, test
--- profile) / Flyway (prod profile) create the schema and V8__seed_roles.sql seeds the roles table.
+-- Prerequisite: start the app once against the target DB so Flyway creates the schema (V0 onward)
+-- and V8__seed_roles.sql seeds the roles table.
 -- Then run:
 --   psql "$DATABASE_URL" -f db/demo-seed.sql
 -- (or: psql -U postgres -d ecommerce -f db/demo-seed.sql)

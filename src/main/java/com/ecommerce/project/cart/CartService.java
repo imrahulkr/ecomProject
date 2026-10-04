@@ -17,5 +17,12 @@ public interface CartService {
 
     String deleteProductFromCart(Long cartId, Long productId);
 
+    // Caller must have already resolved `cart` through a trusted path (e.g. by the order's own
+    // email during payment reconciliation) - unlike deleteProductFromCart(Long, Long), this does
+    // not re-check ownership against the currently authenticated user.
+    String removeProductFromCart(Cart cart, Long productId);
+
     String createOrUpdateCartWithItems(List<CartItemDTO> cartItems);
+
+    String clearCart();
 }

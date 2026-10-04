@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HexFormat;
 
 @Service
@@ -51,10 +53,20 @@ public class IdempotencyService {
 
         return switch (existing.getStatus()) {
             case COMPLETED -> IdempotencyClaim.replay(existing.getResponseBody());
-            case IN_PROGRESS -> throw new IdempotencyConflictException(
-                    "A request with this Idempotency-Key is already being processed");
+            case IN_PROGRESS -> reclaimIfStale(existing.getId());
             case FAILED -> reclaim(existing.getId());
         };
+    }
+
+    // Checkout/retry finish in seconds; a claim still in progress after this long was abandoned.
+    private static final Duration STALE_IN_PROGRESS = Duration.ofMinutes(2);
+
+    private IdempotencyClaim reclaimIfStale(Long recordId) {
+        Instant now = Instant.now();
+        if (idempotencyRepository.reclaimIfStale(recordId, now.minus(STALE_IN_PROGRESS), now) == 0) {
+            throw new IdempotencyConflictException("A request with this Idempotency-Key is already being processed");
+        }
+        return IdempotencyClaim.begin(recordId);
     }
 
     private IdempotencyClaim reclaim(Long recordId) {

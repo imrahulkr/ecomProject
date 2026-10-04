@@ -12,7 +12,7 @@ import com.ecommerce.project.security.dto.SignupRequest;
 import com.ecommerce.project.auth.AuthService;
 import com.ecommerce.project.service.PasswordResetTokenService;
 import com.ecommerce.project.service.RateLimiterService;
-import io.github.bucket4j.Bucket;
+import com.ecommerce.project.service.RateLimiterService.Policy;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.PageRequest;
@@ -47,7 +47,8 @@ public class AuthController {
     //     return authService.register(signupRequest);
     // }
 
-    @GetMapping("/verif-yemail")
+    // First path is canonical; the second is kept as a deprecated alias for existing clients.
+    @GetMapping({"/verify-email", "/verif-yemail"})
     public ResponseEntity<?> verifyUserEmail(@RequestParam("token") String token){
         return authService.validateEmailVerificationToken(token);
     }
@@ -57,13 +58,11 @@ public class AuthController {
             @Valid @RequestBody ForgotPasswordRequestDTO forgotPasswordRequestDTO,
             HttpServletRequest httpRequest
     ){
-        String clientIP = httpRequest.getRemoteAddr();
-        Bucket bucket = rateLimiterService.resolveBucket("forgot-pw" + clientIP);
-
-        if(!bucket.tryConsume(1)) {
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(Map.of("message", "Too many requests. Please try again later."));
-        }
+        rateLimiterService.consumeOrThrow(Policy.PASSWORD_RESET_IP, "forgot:" + httpRequest.getRemoteAddr(),
+                "Too many requests. Please try again later.");
+        // Per target address too, so one inbox can't be flooded with reset emails from many IPs.
+        rateLimiterService.consumeOrThrow(Policy.PASSWORD_RESET_EMAIL, forgotPasswordRequestDTO.email(),
+                "Too many reset emails requested for this address. Please try again later.");
         return authService.forgotPassword(forgotPasswordRequestDTO);
     }
 
@@ -83,12 +82,8 @@ public class AuthController {
     public ResponseEntity<?> resetPasswordRequest(@Valid @RequestBody
                                            ResetPasswordRequestDTO request,
                                            HttpServletRequest httpRequest){
-        String clientIP = httpRequest.getRemoteAddr();
-        Bucket bucket = rateLimiterService.resolveBucket("reset-pw" +  clientIP);
-        if(!bucket.tryConsume(1)) {
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(Map.of("message", "Too many requests. Please try again later."));
-        }
+        rateLimiterService.consumeOrThrow(Policy.PASSWORD_RESET_IP, "reset:" + httpRequest.getRemoteAddr(),
+                "Too many requests. Please try again later.");
 
         String result = passwordResetTokenService.resetPassword(request.token(), request.newPassword());
         return switch (result) {

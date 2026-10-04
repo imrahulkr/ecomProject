@@ -1,5 +1,6 @@
 package com.ecommerce.project.order.dto;
 
+import com.ecommerce.project.refund.RefundStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,6 +26,10 @@ public class OrderItemDTO {
     private String carrier;
     private LocalDateTime shippedAt;
     private LocalDateTime deliveredAt;
+    private String returnReason;
+    private LocalDateTime returnRequestedAt;
+    private RefundStatus refundStatus;
+    private long refundedMinorUnits;
     private Instant createdAt;
     private Instant updatedAt;
 }

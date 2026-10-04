@@ -1,5 +1,7 @@
 package com.ecommerce.project.cart;
 
+import com.ecommerce.project.exceptions.ResourceNotFoundException;
+
 import com.ecommerce.project.exceptions.APIException;
 import com.ecommerce.project.cart.dto.CartDTO;
 import com.ecommerce.project.cart.dto.CartItemDTO;
@@ -24,7 +26,8 @@ public class CartController {
     private final AuthUtil authUtil;
 
 
-    @PostMapping("/cart/create")
+    // First path is canonical; the second is kept as a deprecated alias for existing clients.
+    @PostMapping({"/carts", "/cart/create"})
     public ResponseEntity<String> createOrUpdateCart(@Valid @RequestBody List<@Valid CartItemDTO> cartItems){
         String response = cartService.createOrUpdateCartWithItems(cartItems);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
@@ -40,20 +43,22 @@ public class CartController {
     @GetMapping("/carts")
     public ResponseEntity<List<CartDTO>> getCarts(){
         List<CartDTO> cartDTOs = cartService.getAllCarts();
-        return new ResponseEntity<List<CartDTO>>(cartDTOs, HttpStatus.FOUND);
+        return new ResponseEntity<List<CartDTO>>(cartDTOs, HttpStatus.OK);
     }
 
     @GetMapping("/carts/users/cart")
     public ResponseEntity<CartDTO> getCartById(){
         String emailId = authUtil.loggedInEmail();
         Cart cart = cartRepository.findCartByEmail(emailId);
-        if(cart == null) throw new APIException("Cart is not present for this user, kindly add at least one product in cart");
+        // 404, not 400: "no cart yet" is a normal state for a new user, not a bad request.
+        if(cart == null) throw new ResourceNotFoundException("cart", "email", emailId);
         Long cartId = cart.getCartId();
         CartDTO cartDTO = cartService.getCart(emailId, cartId);
         return new ResponseEntity<>(cartDTO, HttpStatus.OK);
     }
 
-    @PutMapping("/cart/products/{productId}/quantity/{operation}")
+    // First path is canonical; the second is kept as a deprecated alias for existing clients.
+    @PutMapping({"/carts/products/{productId}/quantity/{operation}", "/cart/products/{productId}/quantity/{operation}"})
     public ResponseEntity<CartDTO> updateProductQuantity(@PathVariable Long productId, @PathVariable String operation){
         if (!operation.equalsIgnoreCase("increment") && !operation.equalsIgnoreCase("decrement")
                 && !operation.equalsIgnoreCase("delete")) {
@@ -64,12 +69,16 @@ public class CartController {
         return new ResponseEntity<>(cartDTO, HttpStatus.OK);
     }
 
-    @DeleteMapping("/carts/{cartId}/product/{productId}")
+    // First path is canonical; the second is kept as a deprecated alias for existing clients.
+    @DeleteMapping({"/carts/{cartId}/products/{productId}", "/carts/{cartId}/product/{productId}"})
     public ResponseEntity<String> deleteProductFromCart(@PathVariable Long cartId, @PathVariable Long productId){
-        if (cartRepository.findCartByEmailAndCartId(authUtil.loggedInEmail(), cartId) == null) {
-            throw new APIException("Cart does not belong to the authenticated user");
-        }
         String status = cartService.deleteProductFromCart(cartId, productId);
+        return new ResponseEntity<>(status, HttpStatus.OK);
+    }
+
+    @DeleteMapping("/carts/users/cart")
+    public ResponseEntity<String> clearCart(){
+        String status = cartService.clearCart();
         return new ResponseEntity<>(status, HttpStatus.OK);
     }
 }

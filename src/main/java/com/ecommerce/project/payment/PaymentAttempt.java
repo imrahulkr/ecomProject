@@ -44,6 +44,12 @@ public class PaymentAttempt {
     @Column(name = "provider_payment_reference")
     private String providerPaymentReference;
 
+    // The id a refund targets, recorded when the payment succeeds: equals the reference for
+    // Stripe (PaymentIntent); Razorpay's captured payment id (pay_...) - its reference is the
+    // Razorpay order. Null for attempts paid before this was recorded.
+    @Column(name = "provider_payment_id")
+    private String providerPaymentId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private PaymentAttemptStatus status;

@@ -3,6 +3,8 @@ package com.ecommerce.project.checkout;
 import com.ecommerce.project.checkout.dto.CheckoutRequest;
 import com.ecommerce.project.checkout.dto.CheckoutResponse;
 import com.ecommerce.project.checkout.dto.RetryPaymentRequest;
+import com.ecommerce.project.order.OrderService;
+import com.ecommerce.project.order.dto.OrderDTO;
 import com.ecommerce.project.util.AuthUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class CheckoutController {
 
     private final CheckoutService checkoutService;
+    private final PaymentReconciliationService paymentReconciliationService;
+    private final OrderService orderService;
     private final AuthUtil authUtil;
 
     @PostMapping
@@ -42,5 +46,15 @@ public class CheckoutController {
         CheckoutResponse response = checkoutService.retryPayment(
                 authUtil.loggedInUserId(), authUtil.loggedInEmail(), orderId, idempotencyKey, request);
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    // Asks the payment provider directly whether an order awaiting payment has been paid, then
+    // returns the order. The order page calls this while it waits, so a slow or missed webhook
+    // doesn't leave a paid order showing "awaiting payment". Throttled per order server-side.
+    @PostMapping("/{orderId}/sync-payment")
+    public ResponseEntity<OrderDTO> syncPayment(@PathVariable Long orderId) {
+        String email = authUtil.loggedInEmail();
+        paymentReconciliationService.syncOrderForUser(email, orderId);
+        return new ResponseEntity<>(orderService.getOrderByIdForUser(email, orderId), HttpStatus.OK);
     }
 }

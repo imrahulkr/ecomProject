@@ -36,3 +36,9 @@ logging.level.org.springframework=WARN
 logging.level.org.hibernate.SQL=WARN
 logging.level.org.springframework.security=WARN
 logging.level.com.ecommerce.project=INFO
+
+# Behind a reverse proxy / load balancer: resolve the real client IP from X-Forwarded-For so
+# per-IP rate limits (login, signup, password reset) apply per client instead of per proxy.
+# "native" uses Tomcat's RemoteIpValve, which only trusts the header from internal proxy
+# addresses. Remove if the app is exposed directly to the internet.
+server.forward-headers-strategy=native

@@ -1,6 +1,10 @@
 package com.ecommerce.project.order;
 
+import jakarta.validation.Valid;
+import com.ecommerce.project.order.dto.ReturnRequestDTO;
+import com.ecommerce.project.refund.RefundService;
 
+import com.ecommerce.project.checkout.PaymentReconciliationService;
 import com.ecommerce.project.config.AppConstants;
 import com.ecommerce.project.util.AuthUtil;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +28,8 @@ public class OrderController {
 
     private final AuthUtil authUtil;
     private final OrderService orderService;
+    private final PaymentReconciliationService paymentReconciliationService;
+    private final RefundService refundService;
 
     @GetMapping("/orders")
     public ResponseEntity<OrderResponse> getMyOrders(
@@ -47,8 +53,17 @@ public class OrderController {
     @DeleteMapping("/orders/{orderId}")
     public ResponseEntity<OrderDTO> cancelOrder(@PathVariable Long orderId) {
         String emailId = authUtil.loggedInEmail();
-        OrderDTO orderDTO = orderService.cancelOrderForUser(emailId, orderId);
-        return new ResponseEntity<>(orderDTO, HttpStatus.OK);
+        // Cancelling also has to stop the provider-side payment, which is a network call that
+        // can't run inside OrderService's transactions - see PaymentReconciliationService.
+        paymentReconciliationService.cancelOrderForUser(emailId, orderId);
+        return new ResponseEntity<>(orderService.getOrderByIdForUser(emailId, orderId), HttpStatus.OK);
+    }
+
+    // Customer asks to return a delivered item (seller/admin then approves -> refund, or rejects).
+    @PostMapping("/orders/{orderId}/items/{orderItemId}/return")
+    public ResponseEntity<OrderItemDTO> requestReturn(@PathVariable Long orderId, @PathVariable Long orderItemId,
+                                                      @Valid @RequestBody ReturnRequestDTO request) {
+        return ResponseEntity.ok(orderService.requestReturn(authUtil.loggedInEmail(), orderId, orderItemId, request.reason()));
     }
 
     @GetMapping("/seller/orders")
@@ -68,6 +83,10 @@ public class OrderController {
             @RequestBody FulfillmentUpdateDTO update
     ) {
         Long sellerId = authUtil.loggedInUser().getUserId();
+        if (RefundService.isRefunding(update.status())) {
+            return ResponseEntity.ok(refundService.refundItem(orderItemId, sellerId, update.status(),
+                    RefundService.reasonFor(update.status(), "seller")));
+        }
         OrderItemDTO orderItemDTO = orderService.updateFulfillmentStatusAsSeller(sellerId, orderItemId, update);
         return new ResponseEntity<>(orderItemDTO, HttpStatus.OK);
     }

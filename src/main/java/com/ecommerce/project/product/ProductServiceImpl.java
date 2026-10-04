@@ -10,6 +10,8 @@ import com.ecommerce.project.service.FileService;
 import com.ecommerce.project.util.AuthUtil;
 import com.ecommerce.project.auth.User;
 import com.ecommerce.project.auth.UserRepository;
+import com.ecommerce.project.cart.CartItemRepository;
+import com.ecommerce.project.cart.CartRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -36,6 +38,8 @@ public class ProductServiceImpl implements ProductService {
     private final ModelMapper modelMapper;
     private final FileService fileService;
     private final AuthUtil authUtil;
+    private final CartItemRepository cartItemRepository;
+    private final CartRepository cartRepository;
 
     @Value("${project.image}")
     private String path;
@@ -57,7 +61,7 @@ public class ProductServiceImpl implements ProductService {
     public ProductDTO addProduct(Long categoryId, ProductDTO productDTO) {
         Category category = categoryRepository.findById(categoryId).orElseThrow(()-> new ResourceNotFoundException("Category", "categoryId", categoryId));
         Product product = modelMapper.map(productDTO, Product.class);
-        Product existingProduct = productRepository.findByProductNameIgnoreCase(product.getProductName());
+        Product existingProduct = productRepository.findByProductNameIgnoreCaseAndActiveTrue(product.getProductName());
         if(existingProduct != null) throw new APIException("Product with this Name already exists :::: " + product.getProductName());
         product.setImage("Default.png");
         product.setCategory(category);
@@ -73,10 +77,14 @@ public class ProductServiceImpl implements ProductService {
         Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
 
-        Specification<Product> spec = Specification.unrestricted();
-        if(keyword != null && !keyword.isEmpty()){
-            spec = spec.and((root, query, criteriaBuilder) ->
-                    criteriaBuilder.like(criteriaBuilder.lower(root.get("productName")), "%" + keyword.toLowerCase() + "%"));
+        Specification<Product> spec = (root, query, criteriaBuilder) -> criteriaBuilder.isTrue(root.get("active"));
+        // Name or description, case-insensitive. lower(col) LIKE '%kw%' is served by the pg_trgm
+        // GIN indexes from V18 where the extension is available.
+        if(keyword != null && !keyword.isBlank()){
+            String pattern = "%" + keyword.trim().toLowerCase() + "%";
+            spec = spec.and((root, query, criteriaBuilder) -> criteriaBuilder.or(
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("productName")), pattern),
+                    criteriaBuilder.like(criteriaBuilder.lower(root.get("description")), pattern)));
         }
 
         if(category != null && !category.isEmpty()){
@@ -93,7 +101,7 @@ public class ProductServiceImpl implements ProductService {
         Category category = categoryRepository.findById(categoryId).orElseThrow(()-> new ResourceNotFoundException("Category", "categoryId", categoryId));
         Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
-        Page<Product> productPage = productRepository.findByCategory(category, pageDetails);
+        Page<Product> productPage = productRepository.findByCategoryAndActiveTrue(category, pageDetails);
         return getProductResponseFromProductPage(productPage, pageDetails.getPageNumber());
     }
 
@@ -101,13 +109,13 @@ public class ProductServiceImpl implements ProductService {
     public ProductResponse getProductByKeyword(String keyword, Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
         Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
-        Page<Product> productPage = productRepository.findByProductNameLikeIgnoreCase('%'+keyword+'%', pageDetails);
+        Page<Product> productPage = productRepository.findByProductNameLikeIgnoreCaseAndActiveTrue('%'+keyword+'%', pageDetails);
         return getProductResponseFromProductPage(productPage, pageDetails.getPageNumber());
     }
 
     @Override
     public ProductDTO getProductById(Long productId) {
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByProductIdAndActiveTrue(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
         ProductDTO productDTO = toProductDTO(product);
         productDTO.setImage(constructImageUrl(product.getImage()));
@@ -117,26 +125,36 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductDTO updateProduct(Long productId, ProductDTO productDTO) {
-        Product existingProduct = productRepository.findById(productId).orElseThrow(()-> new ResourceNotFoundException("Product", "productId", productId));
-        applyProductEdits(existingProduct, productDTO);
-        Product updatedProduct = productRepository.save(existingProduct);
-        return toProductDTO(updatedProduct);
+        Product existingProduct = productRepository.findByProductIdAndActiveTrue(productId).orElseThrow(()-> new ResourceNotFoundException("Product", "productId", productId));
+        return applyEditsAndSave(existingProduct, productDTO);
     }
 
     @Override
     @Transactional
     public ProductDTO deleteProduct(Long productId) {
-        Product existingProduct = productRepository.findById(productId).orElseThrow(()-> new ResourceNotFoundException("Product", "productId", productId));
-        productRepository.delete(existingProduct);
+        Product existingProduct = productRepository.findByProductIdAndActiveTrue(productId).orElseThrow(()-> new ResourceNotFoundException("Product", "productId", productId));
+        return softDelete(existingProduct);
+    }
 
-        return toProductDTO(existingProduct);
+    // A hard delete failed with a foreign-key error as soon as the product had orders, and would
+    // also break carts, wishlists and reviews. Instead: hide it and take it out of open carts.
+    // Wishlist entries and reviews stay (lists filter inactive products out).
+    private ProductDTO softDelete(Product product) {
+        product.setActive(false);
+        productRepository.save(product);
+        List<Long> cartIds = cartItemRepository.findCartIdsByProductId(product.getProductId());
+        if (!cartIds.isEmpty()) {
+            cartItemRepository.deleteByProductId(product.getProductId());
+            cartRepository.recalculateTotals(cartIds);
+        }
+        return toProductDTO(product);
     }
 
     @Override
     @Transactional
     public ProductDTO updateProductImage(Long productId, MultipartFile image) throws IOException {
         // Get Product from DB
-        Product existingProduct = productRepository.findById(productId).orElseThrow(()-> new ResourceNotFoundException("Product", "productId", productId));
+        Product existingProduct = productRepository.findByProductIdAndActiveTrue(productId).orElseThrow(()-> new ResourceNotFoundException("Product", "productId", productId));
         // Upload Image to server (in /image folder) and get the file name of the uploaded image
         String fileName = fileService.uploadImage(path, image);
         // Updating the new file name to the product
@@ -152,19 +170,51 @@ public class ProductServiceImpl implements ProductService {
     // association isn't reliable and previously left existingProduct.category silently unset.
     // specialPriceMinorUnits is likewise never taken from the client - it's recomputed here the same
     // way addProduct computes it, so a price/discount edit can't drift the two apart.
+    // Runs inside the caller's transaction: field edits, the atomic stock adjustment and the
+    // cart repricing commit together.
+    private ProductDTO applyEditsAndSave(Product existingProduct, ProductDTO productDTO) {
+        long previousPrice = existingProduct.getSpecialPriceMinorUnits();
+        double previousDiscount = existingProduct.getDiscount();
+        Long productId = existingProduct.getProductId();
+
+        applyProductEdits(existingProduct, productDTO);
+        Product saved = productRepository.save(existingProduct);
+
+        Integer expected = productDTO.getExpectedQuantity() != null
+                ? productDTO.getExpectedQuantity() : existingProduct.getQuantity();
+        int delta = productDTO.getQuantity() - expected;
+        if (delta != 0 && productRepository.adjustStock(productId, delta) == 0) {
+            throw new APIException("Stock cannot go below zero - only "
+                    + productRepository.findQuantityById(productId) + " units are left (some may be held by open checkouts)");
+        }
+
+        if (saved.getSpecialPriceMinorUnits() != previousPrice || saved.getDiscount() != previousDiscount) {
+            cartItemRepository.repriceForProduct(productId, saved.getSpecialPriceMinorUnits(), saved.getDiscount());
+            cartRepository.recalculateTotalsForProduct(productId);
+        }
+
+        ProductDTO dto = toProductDTO(saved);
+        dto.setQuantity(productRepository.findQuantityById(productId));
+        return dto;
+    }
+
+    // Quantity is deliberately not set here - see applyEditsAndSave / Product.quantity.
     private void applyProductEdits(Product existingProduct, ProductDTO productDTO) {
         Category category = categoryRepository.findById(productDTO.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", productDTO.getCategoryId()));
         existingProduct.setPriceMinorUnits(productDTO.getPriceMinorUnits());
         existingProduct.setDiscount(productDTO.getDiscount());
         existingProduct.setSpecialPriceMinorUnits(Math.round(productDTO.getPriceMinorUnits() - (productDTO.getDiscount() * productDTO.getPriceMinorUnits()) / 100));
-        existingProduct.setQuantity(productDTO.getQuantity());
         existingProduct.setCategory(category);
         existingProduct.setProductName(productDTO.getProductName());
         existingProduct.setDescription(productDTO.getDescription());
     }
 
+    // Products may store either an uploaded filename (served from /images) or an absolute external URL.
     private String constructImageUrl(String imageName) {
+        if (imageName != null && (imageName.startsWith("http://") || imageName.startsWith("https://"))) {
+            return imageName;
+        }
         return imageBaseUrl.endsWith("/") ? imageBaseUrl + imageName : imageBaseUrl + "/" + imageName;
     }
 
@@ -172,7 +222,7 @@ public class ProductServiceImpl implements ProductService {
     public ProductResponse getAllProductsForAdmin(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
         Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
-        Page<Product> productPage = productRepository.findAll(pageDetails);
+        Page<Product> productPage = productRepository.findByActiveTrue(pageDetails);
         return getProductResponseFromProductPage(productPage, pageDetails.getPageNumber());
     }
 
@@ -180,7 +230,7 @@ public class ProductServiceImpl implements ProductService {
     public ProductResponse getAllProductForSeller(Integer pageNumber, Integer pageSize, String sortBy, String sortOrder) {
         Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
-        Page<Product> productPage = productRepository.findByUser(authUtil.loggedInUser(), pageDetails);
+        Page<Product> productPage = productRepository.findByUserAndActiveTrue(authUtil.loggedInUser(), pageDetails);
         return getProductResponseFromProductPage(productPage, pageDetails.getPageNumber());
     }
 
@@ -192,33 +242,30 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("user", "userId", sellerId));
         Sort sortByAndOrder = sortOrder.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
-        Page<Product> productPage = productRepository.findByUser(seller, pageDetails);
+        Page<Product> productPage = productRepository.findByUserAndActiveTrue(seller, pageDetails);
         return getProductResponseFromProductPage(productPage, pageDetails.getPageNumber());
     }
 
     @Override
     @Transactional
     public ProductDTO updateProductAsSeller(Long sellerId, Long productId, ProductDTO productDTO) {
-        Product existingProduct = productRepository.findByProductIdAndUser_UserId(productId, sellerId)
+        Product existingProduct = productRepository.findByProductIdAndUser_UserIdAndActiveTrue(productId, sellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
-        applyProductEdits(existingProduct, productDTO);
-        Product updatedProduct = productRepository.save(existingProduct);
-        return toProductDTO(updatedProduct);
+        return applyEditsAndSave(existingProduct, productDTO);
     }
 
     @Override
     @Transactional
     public ProductDTO deleteProductAsSeller(Long sellerId, Long productId) {
-        Product existingProduct = productRepository.findByProductIdAndUser_UserId(productId, sellerId)
+        Product existingProduct = productRepository.findByProductIdAndUser_UserIdAndActiveTrue(productId, sellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
-        productRepository.delete(existingProduct);
-        return toProductDTO(existingProduct);
+        return softDelete(existingProduct);
     }
 
     @Override
     @Transactional
     public ProductDTO updateProductImageAsSeller(Long sellerId, Long productId, MultipartFile image) throws IOException {
-        Product existingProduct = productRepository.findByProductIdAndUser_UserId(productId, sellerId)
+        Product existingProduct = productRepository.findByProductIdAndUser_UserIdAndActiveTrue(productId, sellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "productId", productId));
         String fileName = fileService.uploadImage(path, image);
         existingProduct.setImage(fileName);

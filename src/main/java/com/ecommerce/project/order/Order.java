@@ -43,6 +43,16 @@ public class Order {
     private String currency;
     private String orderStatus;
 
+    @Column(name = "coupon_code", length = 64)
+    private String couponCode;
+
+    @Column(name = "discount_minor_units", nullable = false)
+    private long discountMinorUnits = 0L;
+
+    // Delivery fee included in amountMinorUnits (see checkout.ShippingCalculator).
+    @Column(name = "shipping_minor_units", nullable = false)
+    private long shippingMinorUnits = 0L;
+
     @ToString.Exclude
     @OneToOne
     @JoinColumn(name = "payment_id")
