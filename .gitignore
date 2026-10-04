@@ -31,3 +31,12 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Local/secret Spring profiles ###
+# Real per-environment secrets live in these files; only the .example templates are tracked.
+src/main/resources/application-*.properties
+!src/main/resources/application-*.properties.example
+
+### Docker Compose secrets ###
+.env
+!.env.example

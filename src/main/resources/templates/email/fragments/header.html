@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<body>
+
+<div th:fragment="header(title)">
+
+    <table width="100%"
+           cellspacing="0"
+           cellpadding="0"
+           style="background:#0f172a;padding:30px;">
+
+        <tr>
+
+            <td align="center">
+
+                <h1 style="
+                    color:white;
+                    margin:0;
+                    font-size:28px;">
+
+                    <span th:text="${title}"></span>
+
+                </h1>
+
+            </td>
+
+        </tr>
+
+    </table>
+
+</div>
+
+</body>
+</html>

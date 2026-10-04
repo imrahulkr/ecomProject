@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<body style="margin:0;padding:40px;background:#f4f6f9;font-family:Arial,Helvetica,sans-serif;">
+
+<table width="100%" cellspacing="0" cellpadding="0">
+
+    <tr>
+
+        <td align="center">
+
+            <table width="600"
+                   cellspacing="0"
+                   cellpadding="0"
+                   style="
+            background:white;
+            border-radius:12px;
+            overflow:hidden;
+            box-shadow:0 4px 18px rgba(0,0,0,.08);
+       ">
+
+                <tr>
+
+                    <td>
+
+                        <div th:replace="~{email/fragments/header :: header('Payment Unsuccessful')}"></div>
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td style="padding:40px;">
+
+                        <h2 style="margin-top:0;">
+
+                            Hi
+                            <span th:text="${name}">Rahul</span>,
+
+                        </h2>
+
+                        <p style="line-height:1.8;color:#555;">
+
+                            We couldn't complete the payment for your order.
+
+                        </p>
+
+                        <table
+                                width="100%"
+                                style="
+margin-top:25px;
+border-collapse:collapse;
+background:#f8fafc;
+">
+
+                            <tr>
+
+                                <td style="padding:12px;font-weight:bold;">
+                                    Order Number
+                                </td>
+
+                                <td style="padding:12px;"
+                                    th:text="${orderNumber}">
+                                    123456
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td style="padding:12px;font-weight:bold;">
+                                    Reason
+                                </td>
+
+                                <td style="padding:12px;"
+                                    th:text="${reason}">
+                                    Card declined
+                                </td>
+
+                            </tr>
+
+                        </table>
+
+                        <p style="margin-top:35px;color:#555;">
+
+                            Your items are still reserved for a short time. You can try again,
+                            optionally with a different payment method.
+
+                        </p>
+
+                        <div
+                                th:replace="~{email/fragments/button ::
+button(
+'Retry Payment',
+${retryUrl}
+)}">
+                        </div>
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        <div th:replace="~{email/fragments/footer :: footer}"></div>
+
+                    </td>
+
+                </tr>
+
+            </table>
+
+        </td>
+
+    </tr>
+
+</table>
+
+</body>
+
+</html>

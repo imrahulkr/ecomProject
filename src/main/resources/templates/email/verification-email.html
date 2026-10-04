@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<body style="background:#f4f6f9;margin:0;padding:40px;">
+
+<table width="100%"
+       cellpadding="0"
+       cellspacing="0">
+
+    <tr>
+
+        <td align="center">
+
+            <table width="600"
+                   style="
+       background:white;
+       border-radius:12px;
+       overflow:hidden;
+       box-shadow:0 4px 18px rgba(0,0,0,.08);">
+
+                <tr>
+
+                    <td>
+
+                        <div th:replace="~{email/fragments/header :: header('Verify Email')}"></div>
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td style="padding:40px;">
+
+                        <h2>
+
+                            Hello
+                            <span th:text="${name}"></span>
+
+                        </h2>
+
+                        <p>
+
+                            Thank you for registering.
+
+                            Please verify your email address.
+
+                        </p>
+
+                        <div th:replace="~{email/fragments/button ::
+button(
+'Verify Email',
+${verificationUrl}
+)}"></div>
+
+                        <p style="margin-top:40px;">
+
+                            This link expires in
+                            <strong>24 hours</strong>.
+
+                        </p>
+
+                        <p>
+
+                            Or copy this link into your browser:
+
+                        </p>
+
+                        <a th:href="${verificationUrl}"
+                           th:text="${verificationUrl}"></a>
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        <div th:replace="~{email/fragments/footer :: footer}"></div>
+
+                    </td>
+
+                </tr>
+
+            </table>
+
+        </td>
+
+    </tr>
+
+</table>
+
+</body>
+
+</html>

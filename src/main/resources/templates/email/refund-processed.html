@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<body style="margin:0;padding:40px;background:#f4f6f9;font-family:Arial,Helvetica,sans-serif;">
+
+<table width="100%" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center">
+            <table width="600" cellspacing="0" cellpadding="0"
+                   style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.08);">
+                <tr>
+                    <td>
+                        <div th:replace="~{email/fragments/header :: header('Your refund is on its way')}"></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:40px;">
+                        <h2 style="margin-top:0;">
+                            Hi <span th:text="${name}">Rahul</span>,
+                        </h2>
+                        <p style="line-height:1.8;color:#555;">
+                            We've refunded an item from your order. The money goes back to your original
+                            payment method - banks usually take 5-7 working days to show it.
+                        </p>
+                        <table width="100%" style="margin-top:25px;border-collapse:collapse;background:#f8fafc;">
+                            <tr>
+                                <td style="padding:12px;font-weight:bold;">Order Number</td>
+                                <td style="padding:12px;" th:text="${orderNumber}">123456</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:12px;font-weight:bold;">Item</td>
+                                <td style="padding:12px;" th:text="${productName}">Product Name</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:12px;font-weight:bold;">Reason</td>
+                                <td style="padding:12px;" th:text="${reason}">Cancelled by seller</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:12px;font-weight:bold;">Refund amount</td>
+                                <td style="padding:12px;" th:text="${amount}">INR 499.00</td>
+                            </tr>
+                        </table>
+                        <div th:replace="~{email/fragments/button :: button('View Order', ${orderUrl})}"></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <div th:replace="~{email/fragments/footer :: footer}"></div>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>

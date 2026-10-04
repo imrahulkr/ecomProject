@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Email Verification</title>
+</head>
+
+<body style="margin:0;padding:0;background-color:#f4f6f9;font-family:Arial,Helvetica,sans-serif;">
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+       style="background:#f4f6f9;padding:40px 20px;">
+
+    <tr>
+        <td align="center">
+
+            <table role="presentation"
+                   width="600"
+                   cellspacing="0"
+                   cellpadding="0"
+                   style="background:#ffffff;border-radius:12px;overflow:hidden;
+                          box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+
+                <!-- Header -->
+                <tr>
+                    <td align="center"
+                        style="background:#0f172a;padding:30px;">
+
+                        <h1 style="margin:0;color:white;font-size:28px;">
+                            My Ecommerce
+                        </h1>
+
+                    </td>
+                </tr>
+
+                <!-- Content -->
+                <tr>
+                    <td style="padding:40px;">
+
+                        <h2 style="margin-top:0;color:#111827;">
+                            Hello <span th:text="${name}">User</span>,
+                        </h2>
+
+                        <p style="font-size:16px;color:#4b5563;line-height:1.7;">
+                            Thank you for creating your account.
+                            To complete your registration, please verify your email address.
+                        </p>
+
+                        <div style="text-align:center;margin:40px 0;">
+
+                            <a th:href="${verificationUrl}"
+                               style="
+                                    background:#2563eb;
+                                    color:#ffffff;
+                                    text-decoration:none;
+                                    padding:16px 36px;
+                                    border-radius:8px;
+                                    font-size:16px;
+                                    font-weight:bold;
+                                    display:inline-block;
+                                    box-shadow:0 4px 12px rgba(37,99,235,0.35);
+                               ">
+                                ✅ Verify Email
+                            </a>
+
+                        </div>
+
+                        <p style="font-size:15px;color:#6b7280;line-height:1.7;">
+                            This verification link will expire in
+                            <strong>15 Minutes</strong>.
+                        </p>
+
+                        <p style="font-size:15px;color:#6b7280;line-height:1.7;">
+                            If the button doesn't work, copy and paste the following
+                            link into your browser:
+                        </p>
+
+                        <p style="word-break:break-all;">
+                            <a th:href="${verificationUrl}"
+                               th:text="${verificationUrl}"
+                               style="color:#2563eb;">
+                                Verification Link
+                            </a>
+                        </p>
+
+                        <hr style="margin:35px 0;border:none;border-top:1px solid #e5e7eb;">
+
+                        <p style="font-size:14px;color:#9ca3af;line-height:1.6;">
+                            If you didn't create an account, you can safely ignore this
+                            email. No further action is required.
+                        </p>
+
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td align="center"
+                        style="background:#f9fafb;padding:25px;">
+
+                        <p style="margin:0;font-size:13px;color:#9ca3af;">
+                            © 2026 My Ecommerce Company. All rights reserved.
+                        </p>
+
+                    </td>
+                </tr>
+
+            </table>
+
+        </td>
+    </tr>
+
+</table>
+
+</body>
+</html>

@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="470" viewBox="0 0 1200 470" role="img" aria-label="Three roles: customer, seller, admin">
+  <defs>
+    <linearGradient id="cust" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#2563eb"/><stop offset="100%" stop-color="#06b6d4"/></linearGradient>
+    <linearGradient id="sell" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#ea580c"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient>
+    <linearGradient id="adm" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#db2777"/></linearGradient>
+  </defs>
+  <style>
+    text { font-family: "Segoe UI", Helvetica, Arial, sans-serif; }
+    .role { font-size: 26px; font-weight: 800; fill: #ffffff; }
+    .tag { font-size: 14px; fill: #f8fafc; }
+    .b { font-size: 15px; fill: #1e293b; }
+  </style>
+  <rect width="1200" height="470" rx="20" fill="#f8fafc"/>
+
+  <!-- Customer -->
+  <rect x="30" y="24" width="360" height="422" rx="18" fill="#ffffff" stroke="#bfdbfe" stroke-width="2"/>
+  <path d="M30 42 a18 18 0 0 1 18 -18 h324 a18 18 0 0 1 18 18 v66 h-360 z" fill="url(#cust)"/>
+  <circle cx="78" cy="66" r="24" fill="#ffffff" opacity="0.25"/>
+  <circle cx="78" cy="58" r="8" fill="#ffffff"/>
+  <path d="M64 80 a14 12 0 0 1 28 0 z" fill="#ffffff"/>
+  <text class="role" x="116" y="64">Customer</text>
+  <text class="tag" x="116" y="88">ROLE_USER · buys from many sellers</text>
+  <g fill="#2563eb">
+    <circle cx="56" cy="146" r="5"/><circle cx="56" cy="186" r="5"/><circle cx="56" cy="226" r="5"/><circle cx="56" cy="266" r="5"/>
+    <circle cx="56" cy="306" r="5"/><circle cx="56" cy="346" r="5"/><circle cx="56" cy="386" r="5"/>
+  </g>
+  <text class="b" x="72" y="151">Browse, search and filter products</text>
+  <text class="b" x="72" y="191">Cart with live repricing and coupons</text>
+  <text class="b" x="72" y="231">Checkout with Stripe or Razorpay</text>
+  <text class="b" x="72" y="271">Retry a failed payment, or cancel</text>
+  <text class="b" x="72" y="311">Track every item's fulfilment</text>
+  <text class="b" x="72" y="351">Return delivered items within 7 days</text>
+  <text class="b" x="72" y="391">Verified reviews and a wishlist</text>
+
+  <!-- Seller -->
+  <rect x="420" y="24" width="360" height="422" rx="18" fill="#ffffff" stroke="#fed7aa" stroke-width="2"/>
+  <path d="M420 42 a18 18 0 0 1 18 -18 h324 a18 18 0 0 1 18 18 v66 h-360 z" fill="url(#sell)"/>
+  <circle cx="468" cy="66" r="24" fill="#ffffff" opacity="0.25"/>
+  <path d="M454 60 h28 l-3 20 h-22 z M458 60 v-6 a10 8 0 0 1 20 0 v6" fill="none" stroke="#ffffff" stroke-width="3"/>
+  <text class="role" x="506" y="64">Seller</text>
+  <text class="tag" x="506" y="88">ROLE_SELLER · sells and fulfils</text>
+  <g fill="#ea580c">
+    <circle cx="446" cy="146" r="5"/><circle cx="446" cy="186" r="5"/><circle cx="446" cy="226" r="5"/><circle cx="446" cy="266" r="5"/>
+    <circle cx="446" cy="306" r="5"/><circle cx="446" cy="346" r="5"/><circle cx="446" cy="386" r="5"/>
+  </g>
+  <text class="b" x="462" y="151">Apply to sell; an admin approves</text>
+  <text class="b" x="462" y="191">Manage products, images and stock</text>
+  <text class="b" x="462" y="231">See and ship their own order items</text>
+  <text class="b" x="462" y="271">Cancel a paid item (auto refund)</text>
+  <text class="b" x="462" y="311">Approve or reject returns</text>
+  <text class="b" x="462" y="351">Reply to product reviews</text>
+  <text class="b" x="462" y="391">Earnings ledger and payout history</text>
+
+  <!-- Admin -->
+  <rect x="810" y="24" width="360" height="422" rx="18" fill="#ffffff" stroke="#e9d5ff" stroke-width="2"/>
+  <path d="M810 42 a18 18 0 0 1 18 -18 h324 a18 18 0 0 1 18 18 v66 h-360 z" fill="url(#adm)"/>
+  <circle cx="858" cy="66" r="24" fill="#ffffff" opacity="0.25"/>
+  <path d="M858 48 l14 6 v10 c0 10 -6 16 -14 20 c-8 -4 -14 -10 -14 -20 v-10 z" fill="#ffffff"/>
+  <text class="role" x="896" y="64">Admin</text>
+  <text class="tag" x="896" y="88">ROLE_ADMIN · runs the marketplace</text>
+  <g fill="#7c3aed">
+    <circle cx="836" cy="146" r="5"/><circle cx="836" cy="186" r="5"/><circle cx="836" cy="226" r="5"/><circle cx="836" cy="266" r="5"/>
+    <circle cx="836" cy="306" r="5"/><circle cx="836" cy="346" r="5"/><circle cx="836" cy="386" r="5"/>
+  </g>
+  <text class="b" x="852" y="151">Dashboard with clickable KPI cards</text>
+  <text class="b" x="852" y="191">All orders, products and categories</text>
+  <text class="b" x="852" y="231">Approve sellers, grant or revoke roles</text>
+  <text class="b" x="852" y="271">Create and manage coupons</text>
+  <text class="b" x="852" y="311">Moderate reviews</text>
+  <text class="b" x="852" y="351">Pay out settled seller balances</text>
+  <text class="b" x="852" y="391">Marketplace analytics</text>
+</svg>

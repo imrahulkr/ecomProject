@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<body style="margin:0;padding:40px;background:#f4f6f9;font-family:Arial,Helvetica,sans-serif;">
+
+<table width="100%" cellspacing="0" cellpadding="0">
+
+    <tr>
+
+        <td align="center">
+
+            <table width="600"
+                   cellspacing="0"
+                   cellpadding="0"
+                   style="
+            background:white;
+            border-radius:12px;
+            overflow:hidden;
+            box-shadow:0 4px 18px rgba(0,0,0,.08);
+       ">
+
+                <tr>
+
+                    <td>
+
+                        <div th:replace="~{email/fragments/header :: header('Your cart is waiting')}"></div>
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td style="padding:40px;">
+
+                        <h2 style="margin-top:0;">
+
+                            Hi
+                            <span th:text="${name}">Rahul</span>,
+
+                        </h2>
+
+                        <p style="line-height:1.8;color:#555;">
+
+                            We held the items below for you, but the reservation has now expired
+                            and the stock has been released back for other shoppers.
+
+                        </p>
+
+                        <table
+                                width="100%"
+                                style="
+margin-top:25px;
+border-collapse:collapse;
+background:#f8fafc;
+">
+
+                            <tr th:each="item : ${items}">
+
+                                <td style="padding:12px;font-weight:bold;"
+                                    th:text="${item.productName}">
+                                    Product
+                                </td>
+
+                                <td style="padding:12px;"
+                                    th:text="${item.quantity}">
+                                    1
+                                </td>
+
+                            </tr>
+
+                        </table>
+
+                        <p style="margin-top:35px;color:#555;">
+
+                            If you still want these items, add them back to your cart -
+                            they may sell out.
+
+                        </p>
+
+                        <div
+                                th:replace="~{email/fragments/button ::
+button(
+'View Cart',
+${cartUrl}
+)}">
+                        </div>
+
+                    </td>
+
+                </tr>
+
+                <tr>
+
+                    <td>
+
+                        <div th:replace="~{email/fragments/footer :: footer}"></div>
+
+                    </td>
+
+                </tr>
+
+            </table>
+
+        </td>
+
+    </tr>
+
+</table>
+
+</body>
+
+</html>

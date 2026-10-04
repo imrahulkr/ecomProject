@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="230" viewBox="0 0 1200 230" role="img" aria-label="The life of an order in eight steps">
+  <style>
+    text { font-family: "Segoe UI", Helvetica, Arial, sans-serif; }
+    .st { font-size: 17px; font-weight: 800; fill: #ffffff; }
+    .cap { font-size: 13.5px; fill: #334155; }
+    .num { font-size: 12px; font-weight: 700; fill: #ffffff; opacity: 0.85; }
+  </style>
+  <rect width="1200" height="230" rx="20" fill="#f8fafc"/>
+  <text x="30" y="42" style="font-size:22px;font-weight:800;fill:#0f172a">The life of an order</text>
+  <text x="270" y="42" style="font-size:14px;fill:#64748b">from a customer's first click to the seller's payout</text>
+
+  <polygon points="30,70 158,70 178,105 158,140 30,140" fill="#2563eb"/>
+  <polygon points="172,70 300,70 320,105 300,140 172,140 192,105" fill="#0891b2"/>
+  <polygon points="314,70 442,70 462,105 442,140 314,140 334,105" fill="#059669"/>
+  <polygon points="456,70 584,70 604,105 584,140 456,140 476,105" fill="#65a30d"/>
+  <polygon points="598,70 726,70 746,105 726,140 598,140 618,105" fill="#ca8a04"/>
+  <polygon points="740,70 868,70 888,105 868,140 740,140 760,105" fill="#ea580c"/>
+  <polygon points="882,70 1010,70 1030,105 1010,140 882,140 902,105" fill="#e11d48"/>
+  <polygon points="1024,70 1170,70 1170,140 1024,140 1044,105" fill="#7c3aed"/>
+
+  <text class="num" x="44" y="88">1</text><text class="st" x="102" y="111" text-anchor="middle">Browse</text>
+  <text class="num" x="200" y="88">2</text><text class="st" x="250" y="111" text-anchor="middle">Cart</text>
+  <text class="num" x="342" y="88">3</text><text class="st" x="392" y="111" text-anchor="middle">Checkout</text>
+  <text class="num" x="484" y="88">4</text><text class="st" x="534" y="111" text-anchor="middle">Pay</text>
+  <text class="num" x="626" y="88">5</text><text class="st" x="676" y="111" text-anchor="middle">Ship</text>
+  <text class="num" x="768" y="88">6</text><text class="st" x="818" y="111" text-anchor="middle">Deliver</text>
+  <text class="num" x="910" y="88">7</text><text class="st" x="960" y="111" text-anchor="middle">Refund</text>
+  <text class="num" x="1052" y="88">8</text><text class="st" x="1104" y="111" text-anchor="middle">Payout</text>
+
+  <text class="cap" x="102" y="168" text-anchor="middle">catalogue, search,</text>
+  <text class="cap" x="102" y="186" text-anchor="middle">wishlist</text>
+  <text class="cap" x="250" y="168" text-anchor="middle">live repricing,</text>
+  <text class="cap" x="250" y="186" text-anchor="middle">coupons</text>
+  <text class="cap" x="392" y="168" text-anchor="middle">idempotent; stock</text>
+  <text class="cap" x="392" y="186" text-anchor="middle">held for 10 min</text>
+  <text class="cap" x="534" y="168" text-anchor="middle">Stripe / Razorpay,</text>
+  <text class="cap" x="534" y="186" text-anchor="middle">webhook + polling</text>
+  <text class="cap" x="676" y="168" text-anchor="middle">each seller ships</text>
+  <text class="cap" x="676" y="186" text-anchor="middle">their own items</text>
+  <text class="cap" x="818" y="168" text-anchor="middle">7-day return</text>
+  <text class="cap" x="818" y="186" text-anchor="middle">window opens</text>
+  <text class="cap" x="960" y="168" text-anchor="middle">cancel or return,</text>
+  <text class="cap" x="960" y="186" text-anchor="middle">pro-rata amount</text>
+  <text class="cap" x="1104" y="168" text-anchor="middle">settled earnings</text>
+  <text class="cap" x="1104" y="186" text-anchor="middle">minus 10% fee</text>
+</svg>

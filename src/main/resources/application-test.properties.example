@@ -1,0 +1,29 @@
+# Copy this file to application-test.properties (gitignored) and fill in real local
+# values. application-test.properties must never be committed.
+
+spring.datasource.url=jdbc:postgresql://localhost:5432/ecommerce
+spring.datasource.username=postgres
+spring.datasource.password=CHANGE_ME
+
+# Flyway owns the whole schema (db/migration, starting at V0__legacy_schema). Hibernate only
+# checks the entities match it - add a migration for every table/column change.
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+
+# Base64-encoded HMAC signing key - generate with: openssl rand -base64 32
+app.jwt.secret=CHANGE_ME
+
+stripe.secret.key=CHANGE_ME
+stripe.webhook.secret=CHANGE_ME
+razorpay.key-id=CHANGE_ME
+razorpay.key-secret=CHANGE_ME
+razorpay.webhook.secret=CHANGE_ME
+resend.api-key=CHANGE_ME
+
+app.cookie.secure=false
+
+# INFO keeps startup/request logs readable; switch a package to DEBUG when diagnosing it.
+logging.level.org.springframework=INFO
+logging.level.org.hibernate.SQL=INFO
+logging.level.org.springframework.security=INFO
+logging.level.com.ecommerce.project=DEBUG

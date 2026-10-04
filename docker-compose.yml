@@ -1,0 +1,68 @@
+# Full local stack: Postgres + backend (prod profile) + frontend (nginx) + Mailpit (catches email).
+#
+#   cp .env.example .env      # fill in at least APP_JWT_SECRET and the Stripe test keys
+#   docker compose up --build
+#
+# Storefront:  http://localhost:8081      Mail inbox (Mailpit):  http://localhost:8025
+# The schema is created by Flyway on first start.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ecommerce
+      POSTGRES_USER: ecommerce
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ecommerce}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommerce -d ecommerce"]
+      interval: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+
+  backend:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/ecommerce
+      DB_USERNAME: ecommerce
+      DB_PASSWORD: ${DB_PASSWORD:-ecommerce}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?Set APP_JWT_SECRET in .env (base64, at least 256 bits)}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_missing}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_missing}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_test_missing}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-missing}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-missing}
+      RESEND_API_KEY: ${RESEND_API_KEY:-unused}
+      # Everything is served through the frontend's nginx on :8081.
+      FRONTEND_URL: http://localhost:8081
+      APP_BASE_URL: http://localhost:8081
+      IMAGE_BASE_URL: http://localhost:8081/images
+      # Local-stack overrides of the prod profile: plain http, images on disk, email to Mailpit.
+      APP_COOKIE_SECURE: "false"
+      APP_FILE_STORAGE_PROVIDER: local
+      EMAIL_PROVIDER: smtp
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: "1025"
+    volumes:
+      - uploads:/app/image
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
+    depends_on:
+      - backend
+    ports:
+      - "8081:80"
+
+volumes:
+  db-data:
+  uploads:

@@ -1,0 +1,44 @@
+# Template for production overrides. Copy to application-prod.properties (gitignored) on
+# the deployment target and fill in real values from your secrets manager - never commit
+# real production secrets here.
+
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+
+# Never use "update" in production - use Flyway migrations and keep Hibernate read-only.
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+
+app.jwt.secret=${APP_JWT_SECRET}
+
+stripe.secret.key=${STRIPE_SECRET_KEY}
+stripe.webhook.secret=${STRIPE_WEBHOOK_SECRET}
+razorpay.key-id=${RAZORPAY_KEY_ID}
+razorpay.key-secret=${RAZORPAY_KEY_SECRET}
+razorpay.webhook.secret=${RAZORPAY_WEBHOOK_SECRET}
+resend.api-key=${RESEND_API_KEY}
+
+app.cookie.secure=true
+
+# Product image storage - local disk (the base application.properties default) doesn't survive
+# a redeploy and isn't shared across instances, so production uses S3 instead. Credentials come
+# from the AWS default credential chain (AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY env vars, or an
+# IAM role if running on EC2/ECS/Fargate) - never put AWS keys directly in properties.
+app.file.storage.provider=s3
+app.file.storage.s3.bucket=${AWS_S3_BUCKET}
+app.file.storage.s3.region=${AWS_S3_REGION:us-east-1}
+# Point this at the bucket's public URL (or a CloudFront distribution in front of it) - it has
+# to line up with app.file.storage.s3.bucket for uploaded image links to resolve.
+image.base.url=${IMAGE_BASE_URL}
+
+logging.level.org.springframework=WARN
+logging.level.org.hibernate.SQL=WARN
+logging.level.org.springframework.security=WARN
+logging.level.com.ecommerce.project=INFO
+
+# Behind a reverse proxy / load balancer: resolve the real client IP from X-Forwarded-For so
+# per-IP rate limits (login, signup, password reset) apply per client instead of per proxy.
+# "native" uses Tomcat's RemoteIpValve, which only trusts the header from internal proxy
+# addresses. Remove if the app is exposed directly to the internet.
+server.forward-headers-strategy=native
